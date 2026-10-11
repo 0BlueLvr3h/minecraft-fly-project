@@ -2,7 +2,7 @@ plugins {
     java
 }
 
-group = "it.luca"
+group = "it.project"
 version = "0.1.0"
 
 repositories {

@@ -1,6 +1,6 @@
 name: Mosca
 version: '${version}'
-main: it.luca.mosca.MoscaPlugin
+main: it.project.fly.MoscaPlugin
 api-version: '26.3'
 description: Un Allay guidato dal connettoma della mosca della frutta (FlyWire)
 
