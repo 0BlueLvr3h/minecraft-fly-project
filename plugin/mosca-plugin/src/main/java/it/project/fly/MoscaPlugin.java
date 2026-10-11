@@ -1,4 +1,4 @@
-package it.luca.mosca;
+package it.project.fly;
 
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;

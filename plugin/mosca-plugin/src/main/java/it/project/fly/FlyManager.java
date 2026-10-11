@@ -1,4 +1,4 @@
-package it.luca.mosca;
+package it.project.fly;
 
 import com.google.gson.JsonObject;
 import net.kyori.adventure.text.Component;

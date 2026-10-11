@@ -1,4 +1,4 @@
-package it.luca.mosca;
+package it.project.fly;
 
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
