@@ -1,0 +1,35 @@
+# --- Dati FlyWire: troppo grandi per GitHub e con licenza propria (CC BY-NC 4.0).
+#     Si scaricano a mano (vedi README) e si rigenerano con scripts/00_prepare.py
+data/
+
+# --- Ambiente Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.nbi
+*.nbc
+
+# --- Plugin: file di build e dell'IDE
+build/
+plugin/.gradle/
+.gradle/
+.idea/
+*.iml
+out/
+
+# --- Server Minecraft di prova (se sta dentro la cartella del progetto)
+server/
+paper-server/
+*.jar
+world/
+world_nether/
+world_the_end/
+logs/
+crash-reports/
+
+# --- Registri di debug della mosca e varie
+*.csv
+*.log
+.DS_Store
+Thumbs.db

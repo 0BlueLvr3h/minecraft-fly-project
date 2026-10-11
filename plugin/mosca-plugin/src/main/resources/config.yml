@@ -1,0 +1,49 @@
+# Indirizzo del server del cervello (scripts/02_server.py)
+brain-url: "ws://127.0.0.1:8765"
+
+# Distanza massima (in blocchi) a cui la mosca vede i player e sente gli odori
+range: 16.0
+
+# Camminata: velocità e sterzata "piene" nel gioco.
+walk:
+  max-speed: 1.5       # blocchi al secondo a velocità piena
+  max-turn: 120.0      # gradi al secondo a sterzata piena
+  smoothing: 0.25      # 0..1: più basso = movimenti più morbidi ma più lenti a reagire
+  hover-height: 0.6    # quanto resta sollevata da terra (blocchi)
+
+# Il "midollo": nella mosca vera la camminata la genera il cordone nervoso (VNC),
+# che FlyWire non contiene. Qui lo fa il plugin: gironzola da sola, e quando il
+# cervello percepisce un odore va verso (o via da) dove si trova.
+spinal:
+  wander-speed: 0.35   # frazione di max-speed quando gironzola
+  activity: 0.6        # 0..1: quanto spesso è in movimento invece che ferma
+  # Riflesso del corpo: nella mosca vera un colpo sul corpo la fa saltare via tramite
+  # il cordone nervoso (VNC), che FlyWire non contiene. Un colpo forte almeno quanto
+  # questa soglia la fa scappare subito. Un pugno vale circa 0.3 (la sente e si pulisce),
+  # una spada 1 (scappa). 0 = spento, decide solo il cervello.
+  hit-reflex: 0.6
+
+# Vita: la mosca ha i punti vita dell'Allay (20 = 10 cuori), mostrati nel nome.
+# Mangiando recupera vita.
+health:
+  heal-per-bite: 2.0   # punti vita recuperati ogni 3 secondi di pasto (2 = un cuore)
+
+# Preferenza innata per ogni odore: + = ci va incontro, - = lo evita (da -1 a 1)
+valence:
+  fruity: 1.0
+  rotten: -1.0
+
+# Odori: item (in mano a un player o lasciati a terra) -> odore per il cervello.
+# Odori disponibili: fruity (attraente), rotten (avversivo)
+odors:
+  APPLE: fruity
+  GOLDEN_APPLE: fruity
+  SWEET_BERRIES: fruity
+  GLOW_BERRIES: fruity
+  MELON_SLICE: fruity
+  HONEY_BOTTLE: fruity
+  SUGAR: fruity
+  ROTTEN_FLESH: rotten
+  SPIDER_EYE: rotten
+  FERMENTED_SPIDER_EYE: rotten
+  POISONOUS_POTATO: rotten

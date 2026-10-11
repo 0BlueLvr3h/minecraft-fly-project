@@ -1,0 +1,16 @@
+name: Mosca
+version: '${version}'
+main: it.luca.mosca.MoscaPlugin
+api-version: '26.3'
+description: Un Allay guidato dal connettoma della mosca della frutta (FlyWire)
+
+commands:
+  mosca:
+    description: Gestisce la mosca
+    usage: /mosca <spawn [force]|remove [all]|status|debug>
+    permission: mosca.admin
+
+permissions:
+  mosca.admin:
+    description: Permette di gestire la mosca
+    default: op
