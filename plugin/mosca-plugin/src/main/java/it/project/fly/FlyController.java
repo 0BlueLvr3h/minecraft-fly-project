@@ -191,7 +191,13 @@ public final class FlyController {
         tick++;
         Location loc = fly.getLocation();
         BrainLink.Motor last = brain.latest(id);
-        if (last != null) memValence += (last.memValence() - memValence) * 0.05;   // circa un secondo
+        if (last != null) {
+            if (last.memFamiliar() >= 0.05) {             // il corpo fungiforme riconosce un odore (fino a ~4 blocchi)
+                memValence += (last.memValence() - memValence) * 0.05;   // ti sente bene: segue la memoria (~1 s)
+            } else {
+                memValence *= 0.995;     // odore debole o sparito: l'attrazione resta per una decina di secondi
+            }
+        }
         if (hopCooldown > 0) hopCooldown--;
 
         BrainLink.Motor takeoff = brain.pollTakeoff(id);   // consumato anche in volo

@@ -6,8 +6,13 @@ Perché ogni player resti "lui", il suo odore deve:
   - accendere abbastanza KC (sennò la memoria ha poco su cui scrivere)
   - accendere sempre le stesse (sennò ogni volta sembra un odore nuovo)
   - sovrapporsi poco con gli odori degli altri player (sennò li confonde)
+  - NON accendere il Giant Fiber: per una mosca l'odore di un corpo non è un pericolo
+    innato (alcuni mix di glomeruli arrivano alla fuga e la farebbero scappare da sola)
+  - costare poco al cervello: con più player vicini gli odori si sommano, e un odore
+    che accende mezzo cervello rallenta la simulazione sotto il tempo reale
 
-Generiamo tanti odori candidati (un gruppo di glomeruli, ognuno con la sua intensità),
+Prima proviamo i glomeruli uno per uno e scartiamo quelli "inefficienti": quelli che
+accendono molto il resto del cervello e poco il corpo fungiforme. Poi generiamo tanti odori candidati (un gruppo di glomeruli, ognuno con la sua intensità),
 li facciamo annusare al cervello due volte a circa 2 blocchi di distanza e teniamo i
 migliori. Il cervello non viene toccato: scegliamo solo gli odori.
 
@@ -26,26 +31,50 @@ import numpy as np
 from circuits import ODOR_RATE, ODORS, FlyCircuits, player_rate
 from flysim import PROC, RECOMMENDED, FlyBrain
 
-CANDIDATES = 120
+CANDIDATES = 300
 KEEP = 16                 # quanti odori diversi (oltre: due player possono condividerne uno)
 CONC = 0.6                # circa un player a 2 blocchi
-MS = 600.0
+MS = 1000.0
+MAX_COST = 40000          # spike/s di tutto il cervello per un odore a 2 blocchi (oltre: troppo pesante)
 MAX_OVERLAP = 0.12        # sovrapposizione massima tra le KC di due odori scelti
 MIN_KC = 40               # KC affidabili minime perché un odore valga
-# Glomeruli esclusi: già usati per frutta e marcio, o con un significato innato forte (feromoni)
-RESERVED = {g for gl in ODORS.values() for g in gl} | {"ORN_DA1", "ORN_VA1d", "ORN_VA1v", "ORN_DL3"}
+# Glomeruli esclusi: già usati per frutta e marcio, o con un significato innato forte:
+# feromoni (DA1, VA1d, VA1v, DL3) e ammoniaca/ammine (VM1, VC5, VM6m, VM6v, VM6l), che nel
+# connettoma arrivano al Giant Fiber: da soli fanno scappare la mosca.
+RESERVED = ({g for gl in ODORS.values() for g in gl}
+            | {"ORN_DA1", "ORN_VA1d", "ORN_VA1v", "ORN_DL3"}
+            | {"ORN_VM1", "ORN_VC5", "ORN_VM6m", "ORN_VM6v", "ORN_VM6l"})
+# Glomerulo inefficiente: da solo costa più di GLOM_HEAVY spike/s, oppure più di GLOM_COST
+# accendendo meno di GLOM_MIN_KC cellule di Kenyon.
+GLOM_HEAVY = 30000
+GLOM_COST = 10000
+GLOM_MIN_KC = 40
 OUT = PROC / "player_odors.json"
 
 
 def main():
     t0 = time.perf_counter()
     brain = FlyBrain(dt=0.2, seed=17, params=RECOMMENDED)
-    FlyCircuits(brain)
+    circ = FlyCircuits(brain)
+    gf = np.concatenate([circ.gf["L"], circ.gf["R"]])
     kc = brain.find_prefix("KC")
     ct = brain.neurons["cell_type"].fillna("").astype(str)
     pool = sorted(t for t in ct[ct.str.startswith("ORN_")].unique() if t not in RESERVED)
-    print(f"Cervello pronto in {time.perf_counter() - t0:.1f} s; {len(pool)} glomeruli disponibili, "
-          f"{CANDIDATES} odori da provare")
+    print(f"Cervello pronto in {time.perf_counter() - t0:.1f} s; provo {len(pool)} glomeruli uno per uno")
+    keep = []
+    for g in pool:
+        brain.reset()
+        brain.set_stimulus(brain.find(g), player_rate(CONC))
+        brain.run(MS)
+        cost = brain.counts.sum() / (MS / 1000)
+        n_kc = int((brain.counts[kc] >= 2).sum())
+        bad = cost > GLOM_HEAVY or (cost > GLOM_COST and n_kc < GLOM_MIN_KC)
+        if bad:
+            print(f"  scarto {g[4:]:5s}: {cost / 1000:.0f}k spike/s per {n_kc} KC")
+        else:
+            keep.append(g)
+    pool = keep
+    print(f"{len(pool)} glomeruli usabili, {CANDIDATES} odori da provare")
 
     rng = np.random.default_rng(2024)
     cands = []
@@ -55,21 +84,26 @@ def main():
         prof = [round(float(x), 2) for x in rng.uniform(0.3, 1.0, n)]
         idx = np.concatenate([brain.find(g) for g in gl])
         hz = np.concatenate([np.full(len(brain.find(g)), w) for g, w in zip(gl, prof)])
-        sets = []
+        sets, gf_spk, cost = [], 0, 0.0
         for _ in range(2):
             brain.reset()
             brain.set_stimulus(idx, player_rate(CONC) * hz)
             brain.run(MS)
             sets.append(set(kc[brain.counts[kc] >= 2].tolist()))
+            gf_spk += int(brain.counts[gf].sum())
+            cost += brain.counts.sum() / (MS / 1000) / 2
         reliable = sets[0] & sets[1]
         union = sets[0] | sets[1]
-        cands.append({"glomeruli": gl, "profile": prof, "kc": reliable,
+        cands.append({"glomeruli": gl, "profile": prof, "kc": reliable, "gf": gf_spk, "cost": cost,
                       "reliability": len(reliable) / max(1, len(union))})
         if (c + 1) % 20 == 0:
             print(f"  {c + 1}/{CANDIDATES} ({time.perf_counter() - t0:.0f} s)")
 
-    good = [c for c in cands if len(c["kc"]) >= MIN_KC]
-    print(f"\nOdori che accendono almeno {MIN_KC} KC affidabili: {len(good)} su {CANDIDATES}")
+    n_gf = sum(c["gf"] > 0 for c in cands)
+    n_cost = sum(c["cost"] > MAX_COST for c in cands)
+    good = [c for c in cands if len(c["kc"]) >= MIN_KC and c["gf"] == 0 and c["cost"] <= MAX_COST]
+    print(f"\nScartati: {n_gf} accendono il Giant Fiber, {n_cost} troppo pesanti (> {MAX_COST} spike/s)")
+    print(f"Odori buoni (almeno {MIN_KC} KC affidabili, niente fuga, leggeri): {len(good)} su {CANDIDATES}")
     good.sort(key=lambda c: len(c["kc"]) * c["reliability"], reverse=True)
 
     chosen = []
@@ -85,12 +119,16 @@ def main():
     for i, c in enumerate(chosen):
         print(f"  {i:2d}: {len(c['glomeruli']):2d} glomeruli, KC affidabili {len(c['kc']):4d} "
               f"({100 * len(c['kc']) / len(kc):.1f}%), ripetibilità {c['reliability']:.2f}, "
-              f"sovrapposizione max {c['overlap']:.2f}")
+              f"sovrapposizione max {c['overlap']:.2f}, costo {c['cost'] / 1000:.0f}k spike/s")
     if len(chosen) < KEEP:
         print(f"ATTENZIONE: solo {len(chosen)} odori abbastanza distinti, i player oltre li condivideranno")
 
     OUT.write_text(json.dumps([{"glomeruli": c["glomeruli"], "profile": c["profile"]} for c in chosen],
                               indent=1), encoding="utf-8")
+    assign = PROC / "player_assign.json"          # gli odori sono cambiati: si riassegnano da capo
+    if assign.exists():
+        assign.unlink()
+        print("Assegnazioni dei player azzerate (ognuno riceverà uno dei nuovi odori)")
     print(f"\nSalvato {OUT} in {time.perf_counter() - t0:.0f} s")
 
 
