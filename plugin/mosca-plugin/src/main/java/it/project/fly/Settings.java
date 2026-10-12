@@ -22,6 +22,7 @@ public record Settings(
         double activity,
         double hitReflex,
         double healPerBite,
+        int maxPerPlayer,
         Map<String, Double> valence,
         Map<Material, String> odors) {
 
@@ -70,6 +71,7 @@ public record Settings(
                 clamp(c.getDouble("spinal.activity", 0.6), 0, 1),
                 clamp(c.getDouble("spinal.hit-reflex", 0.6), 0, 1),
                 Math.max(0, c.getDouble("health.heal-per-bite", 2.0)),
+                Math.max(0, c.getInt("spawn.max-per-player", 1)),
                 valence,
                 odors);
     }

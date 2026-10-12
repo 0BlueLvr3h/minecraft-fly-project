@@ -23,6 +23,12 @@ spinal:
   # una spada 1 (scappa). 0 = spento, decide solo il cervello.
   hit-reflex: 0.6
 
+# Nascite: quante mosche può avere ogni player (0 = nessun limite). Oltre a questo
+# conta il limite del PC dei cervelli (--spawn-rt del server). /mosca spawn force
+# salta entrambi i controlli.
+spawn:
+  max-per-player: 1
+
 # Vita: la mosca ha i punti vita dell'Allay (20 = 10 cuori), mostrati nel nome.
 # Mangiando recupera vita.
 health:

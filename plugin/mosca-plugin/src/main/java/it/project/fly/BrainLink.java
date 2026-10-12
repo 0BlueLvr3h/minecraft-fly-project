@@ -52,6 +52,7 @@ public final class BrainLink {
     private final Map<String, Motor> pendingTakeoff = new ConcurrentHashMap<>();
     private volatile boolean canSpawn = true;
     private volatile double rtAvg = 0;
+    private volatile String spawnBlock = null;      // perché il server non accetta mosche: wait, rt, max
     private Supplier<List<String>> aliveFlies = List::of;
 
     public BrainLink(JavaPlugin plugin, String url) {
@@ -96,6 +97,7 @@ public final class BrainLink {
         latest.clear();
         pendingTakeoff.clear();
         canSpawn = true;
+        spawnBlock = null;
     }
 
     public boolean isConnected() {
@@ -169,6 +171,11 @@ public final class BrainLink {
         return canSpawn;
     }
 
+    /** Perché il server non accetta nuove mosche: "wait", "rt", "max", oppure null. */
+    public String spawnBlock() {
+        return canSpawn ? null : spawnBlock;
+    }
+
     public double rtAvg() {
         return rtAvg;
     }
@@ -185,6 +192,8 @@ public final class BrainLink {
             if (!batch.has("type") || !"motors".equals(batch.get("type").getAsString())) return;
             canSpawn = batch.get("can_spawn").getAsBoolean();
             rtAvg = batch.get("rt_avg").getAsDouble();
+            spawnBlock = batch.has("spawn_block") && !batch.get("spawn_block").isJsonNull()
+                    ? batch.get("spawn_block").getAsString() : null;
             double rt = batch.get("rt").getAsDouble();
             JsonObject flies = batch.getAsJsonObject("flies");
             for (String id : flies.keySet()) {

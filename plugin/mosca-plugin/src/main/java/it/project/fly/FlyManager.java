@@ -52,14 +52,44 @@ public final class FlyManager {
 
     // --------------------------------------------------------- nascite e morti
 
+    /** Perché una nuova mosca non può nascere. */
+    public enum Refusal {
+        OWN_LIMIT,   // il player ha già le sue mosche (spawn.max-per-player)
+        WAIT,        // il server sta ancora misurando l'ultima nata: qualche secondo
+        PC_LIMIT,    // tempo reale sotto la soglia: il PC dei cervelli non regge altre mosche
+        MAX          // raggiunto --max-flies del server
+    }
+
+    /** Può nascere una mosca per questo player? null = sì, altrimenti il motivo. */
+    public Refusal refusal(UUID owner) {
+        if (owner != null && cfg.maxPerPlayer() > 0 && owned(owner) >= cfg.maxPerPlayer()) return Refusal.OWN_LIMIT;
+        if (flies.isEmpty() || brain.canSpawn()) return null;
+        String why = brain.spawnBlock();
+        if ("wait".equals(why)) return Refusal.WAIT;
+        if ("max".equals(why)) return Refusal.MAX;
+        return Refusal.PC_LIMIT;
+    }
+
+    /** Quante mosche vive ha fatto nascere questo player. */
+    public int owned(UUID owner) {
+        int n = 0;
+        for (FlyController f : flies.values()) if (owner.equals(f.owner())) n++;
+        return n;
+    }
+
+    public FlyController ownedBy(UUID owner) {
+        for (FlyController f : flies.values()) if (owner.equals(f.owner())) return f;
+        return null;
+    }
+
     /**
-     * Fa nascere una mosca. Se force è falso, nasce solo se il server dei cervelli ha margine
-     * (tempo reale abbastanza alto). Restituisce la mosca, o null se il cervello è al limite.
+     * Fa nascere una mosca di un player (owner può essere null). Se force è falso controlla
+     * prima refusal(): limite per player e margine del PC. Restituisce null se non può nascere.
      */
-    public FlyController spawn(Location loc, boolean force) {
-        if (!force && !flies.isEmpty() && !brain.canSpawn()) return null;
+    public FlyController spawn(Location loc, UUID owner, boolean force) {
+        if (!force && refusal(owner) != null) return null;
         String id = String.valueOf(nextId++);
-        FlyController fly = new FlyController(id, this);
+        FlyController fly = new FlyController(id, owner, this);
         fly.spawn(loc);
         flies.put(id, fly);
         byEntity.put(fly.entityId(), id);

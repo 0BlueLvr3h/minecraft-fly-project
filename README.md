@@ -47,6 +47,9 @@ python scripts\02_server.py          (cervelli + esploratore su http://127.0.0.1
 
 In gioco: `/mosca spawn`, `/mosca status`, `/mosca debug`, `/mosca remove [all]`.
 
+Ogni player può avere una mosca (`spawn.max-per-player` in `config.yml`); in più il
+server dei cervelli rifiuta nuove mosche se il tempo reale medio scende sotto `--spawn-rt`.
+
 ## Crediti e licenze
 
 Dati del connettoma: FlyWire Consortium (Dorkenwald et al., Nature 2024; Schlegel et al.,

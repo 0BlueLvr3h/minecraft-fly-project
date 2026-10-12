@@ -112,11 +112,20 @@ class Server:
         self.last_spawn = 0.0
 
     # ------------------------------------------------------------- capacità
-    def can_spawn(self):
+    def spawn_block(self):
+        """Perché non può nascere un'altra mosca: None (può), "wait", "max" o "rt"."""
         if not self.flies:
-            return True
-        settled = time.monotonic() - self.last_spawn > 3.0     # aspetta che l'ultima pesi sulla media
-        return settled and len(self.flies) < self.max_flies and self.rt_avg >= self.spawn_rt
+            return None
+        if time.monotonic() - self.last_spawn <= 3.0:            # aspetta che l'ultima pesi sulla media
+            return "wait"
+        if len(self.flies) >= self.max_flies:
+            return "max"
+        if self.rt_avg < self.spawn_rt:
+            return "rt"
+        return None
+
+    def can_spawn(self):
+        return self.spawn_block() is None
 
     # ------------------------------------------------------------- mosche
     async def spawn(self, fid, owner):
@@ -237,14 +246,15 @@ class Server:
                 self.rt_avg = 20.0
 
             rt_r = round(rt, 2)
-            can = self.can_spawn()
+            block = self.spawn_block()
             by_owner = {}
             for f in flies:
                 if f.id in self.flies:
                     by_owner.setdefault(f.owner, {})[f.id] = f.motor()
             for owner, motors in by_owner.items():
                 await self.send(owner, {"type": "motors", "rt": rt_r, "rt_avg": round(self.rt_avg, 2),
-                                        "can_spawn": can, "flies": motors})
+                                        "can_spawn": block is None, "spawn_block": block,
+                                        "flies": motors})
             for ws, watching in list(self.viewers.items()):
                 f = self.flies.get(watching)
                 if f is None or f.out is None:

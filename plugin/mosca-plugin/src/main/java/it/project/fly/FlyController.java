@@ -49,6 +49,7 @@ public final class FlyController {
     private static final int BITE_TICKS = 60;        // ogni 3 s di pasto consuma un item
 
     private final String id;
+    private final UUID owner;                        // player che l'ha fatta nascere (null = nessuno)
     private final FlyManager mgr;
     private final JavaPlugin plugin;
     private final BrainLink brain;
@@ -79,8 +80,9 @@ public final class FlyController {
     private int groomTicks;
     private float groomYaw;
 
-    FlyController(String id, FlyManager mgr) {
+    FlyController(String id, UUID owner, FlyManager mgr) {
         this.id = id;
+        this.owner = owner;
         this.mgr = mgr;
         this.plugin = mgr.plugin;
         this.brain = mgr.brain;
@@ -89,6 +91,7 @@ public final class FlyController {
     }
 
     public String id() { return id; }
+    public UUID owner() { return owner; }
     public UUID entityId() { return fly != null ? fly.getUniqueId() : null; }
     public Location location() { return fly != null && !fly.isDead() ? fly.getLocation() : null; }
     public double health() { return fly != null ? fly.getHealth() : 0; }
