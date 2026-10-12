@@ -69,7 +69,7 @@ public record Settings(
         // Nido: la frutta che, da sola, riempie una compostiera e fa nascere una mosca
         Set<Material> fruits = EnumSet.noneOf(Material.class);
         List<String> fruitNames = c.isList("nest.fruits") ? c.getStringList("nest.fruits")
-                : List.of("APPLE", "SWEET_BERRIES", "GLOW_BERRIES", "MELON_SLICE");
+                : List.of("APPLE", "MELON_SLICE", "MELON", "PUMPKIN", "SWEET_BERRIES", "GLOW_BERRIES");
         for (String name : fruitNames) {
             Material m = Material.matchMaterial(name.toUpperCase(Locale.ROOT));
             if (m == null) log.warning("Frutto ignorato in config.yml (nest.fruits): " + name);

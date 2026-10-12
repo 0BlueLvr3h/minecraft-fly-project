@@ -48,7 +48,7 @@ python scripts\02_server.py          (cervelli + esploratore su http://127.0.0.1
 
 In gioco: `/mosca spawn`, `/mosca status`, `/mosca debug`, `/mosca remove [all]`.
 
-Senza comandi: riempi una compostiera **solo di frutta** (mele, bacche, anguria) e invece
+Senza comandi: riempi una compostiera **solo di frutta** (mele, anguria, zucca, bacche) e invece
 della farina d'ossa, dopo un po', ne esce una mosca.
 
 Ogni player può avere una mosca (`spawn.max-per-player` in `config.yml`); in più il

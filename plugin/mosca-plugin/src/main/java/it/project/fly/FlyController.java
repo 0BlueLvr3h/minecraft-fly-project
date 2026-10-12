@@ -12,6 +12,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Waterlogged;
 import org.bukkit.entity.Allay;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -20,6 +22,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,6 +48,9 @@ public final class FlyController {
     private static final double SINK = 0.025;
     private static final int MAX_FLIGHT_TICKS = 40;
     private static final int GROUND_SCAN = 4;        // quanti blocchi sotto cerca il terreno
+    private static final int WATER_SCAN = 64;        // quanti blocchi sopra cerca il pelo dell'acqua
+    private static final Set<Material> WATER_PLANTS = EnumSet.of(
+            Material.KELP, Material.KELP_PLANT, Material.SEAGRASS, Material.TALL_SEAGRASS, Material.BUBBLE_COLUMN);
     private static final double TASTE_DIST = 1.0;    // blocchi: "ci sono sopra", può assaggiare
     private static final int BITE_TICKS = 60;        // ogni 3 s di pasto consuma un item
 
@@ -499,6 +505,15 @@ public final class FlyController {
                 : loc.getYaw();
         next.setYaw(yaw);
         next.setPitch(0);
+        // l'acqua la ferma come un pavimento: si posa sul pelo dell'acqua
+        Block nb = next.getBlock();
+        if (isWater(nb)) {
+            double surf = waterSurface(nb);
+            if (!Double.isNaN(surf)) {
+                next.setY(surf + cfg.hoverHeight());
+                if (vel.getY() < 0) vel.setY(0);
+            }
+        }
         fly.teleport(next);
 
         vel.multiply(DRAG);
@@ -513,13 +528,41 @@ public final class FlyController {
 
     // ------------------------------------------------------------- utilità
 
-    /** Altezza a cui stare: poco sopra il primo blocco solido sotto di sé. */
+    /**
+     * Altezza a cui stare: poco sopra il primo blocco solido sotto di sé. L'acqua conta
+     * come pavimento (la mosca sta sul pelo dell'acqua); se è già sotto, risale a galla.
+     */
     private double groundTarget(Location loc) {
+        Block here = loc.getBlock();
+        if (isWater(here)) {
+            double surf = waterSurface(here);
+            return Double.isNaN(surf) ? loc.getY() : surf + cfg.hoverHeight();   // sotto un soffitto: resta
+        }
         for (int i = 0; i <= GROUND_SCAN; i++) {
             Block b = loc.clone().subtract(0, i, 0).getBlock();
+            if (isWater(b)) {
+                double surf = waterSurface(b);
+                if (!Double.isNaN(surf)) return surf + cfg.hoverHeight();
+            }
             if (!b.isPassable()) return b.getY() + 1 + cfg.hoverHeight();
         }
         return loc.getY() - 0.5;                         // niente sotto: scende piano
+    }
+
+    /** Acqua (o lava), anche piante acquatiche e blocchi attraversabili pieni d'acqua. */
+    private static boolean isWater(Block b) {
+        if (b.isLiquid() || WATER_PLANTS.contains(b.getType())) return true;
+        return b.isPassable() && b.getBlockData() instanceof Waterlogged w && w.isWaterlogged();
+    }
+
+    /** Quota del pelo dell'acqua sopra questo blocco d'acqua, o NaN se sopra c'è un soffitto. */
+    private static double waterSurface(Block b) {
+        for (int i = 0; i < WATER_SCAN; i++) {
+            Block up = b.getRelative(BlockFace.UP);
+            if (!isWater(up)) return up.isPassable() ? b.getY() + 1.0 : Double.NaN;
+            b = up;
+        }
+        return Double.NaN;
     }
 
     private static boolean free(Location loc) {
