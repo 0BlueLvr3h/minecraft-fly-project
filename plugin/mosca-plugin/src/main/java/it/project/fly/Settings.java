@@ -8,6 +8,9 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.List;
+import java.util.Set;
+import java.util.EnumSet;
 import java.util.logging.Logger;
 
 /** Impostazioni lette da config.yml (con valori di default se mancano). */
@@ -23,6 +26,9 @@ public record Settings(
         double hitReflex,
         double healPerBite,
         int maxPerPlayer,
+        boolean nestEnabled,
+        int hatchSeconds,
+        Set<Material> nestFruits,
         Map<String, Double> valence,
         Map<Material, String> odors) {
 
@@ -60,6 +66,16 @@ public record Settings(
             }
         }
 
+        // Nido: la frutta che, da sola, riempie una compostiera e fa nascere una mosca
+        Set<Material> fruits = EnumSet.noneOf(Material.class);
+        List<String> fruitNames = c.isList("nest.fruits") ? c.getStringList("nest.fruits")
+                : List.of("APPLE", "SWEET_BERRIES", "GLOW_BERRIES", "MELON_SLICE");
+        for (String name : fruitNames) {
+            Material m = Material.matchMaterial(name.toUpperCase(Locale.ROOT));
+            if (m == null) log.warning("Frutto ignorato in config.yml (nest.fruits): " + name);
+            else fruits.add(m);
+        }
+
         return new Settings(
                 c.getString("brain-url", "ws://127.0.0.1:8765"),
                 c.getDouble("range", 16.0),
@@ -72,6 +88,9 @@ public record Settings(
                 clamp(c.getDouble("spinal.hit-reflex", 0.6), 0, 1),
                 Math.max(0, c.getDouble("health.heal-per-bite", 2.0)),
                 Math.max(0, c.getInt("spawn.max-per-player", 1)),
+                c.getBoolean("nest.enabled", true),
+                Math.max(1, c.getInt("nest.hatch-seconds", 20)),
+                fruits,
                 valence,
                 odors);
     }

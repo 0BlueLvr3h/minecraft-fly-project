@@ -43,7 +43,8 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
                 FlyManager.Refusal no = force ? null : flies.refusal(p.getUniqueId());
                 FlyController fly = no == null ? flies.spawn(loc, p.getUniqueId(), force) : null;
                 if (fly == null) {
-                    msg(sender, refusalText(no == null ? FlyManager.Refusal.PC_LIMIT : no, p)
+                    msg(sender, "Nessuna nuova mosca: "
+                            + flies.describe(no == null ? FlyManager.Refusal.PC_LIMIT : no, p.getUniqueId())
                             + " Usa /mosca spawn force per farla nascere comunque.", NamedTextColor.RED);
                 } else {
                     msg(sender, "È nata la mosca " + fly.id() + " (" + flies.count() + " in tutto).",
@@ -128,20 +129,6 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
             return opts.stream().filter(s -> s.startsWith(a)).toList();
         }
         return List.of();
-    }
-
-    private String refusalText(FlyManager.Refusal r, Player p) {
-        return switch (r) {
-            case OWN_LIMIT -> {
-                FlyController mine = flies.ownedBy(p.getUniqueId());
-                yield "Hai già la tua mosca" + (mine != null ? " (mosca " + mine.id() + ")" : "")
-                        + ": massimo " + flies.cfg.maxPerPlayer() + " per player.";
-            }
-            case WAIT -> "Il PC sta ancora misurando l'ultima mosca nata: riprova tra qualche secondo.";
-            case MAX -> "Raggiunto il numero massimo di mosche del server dei cervelli.";
-            case PC_LIMIT -> String.format(Locale.ROOT,
-                    "Il PC dei cervelli è al limite (tempo reale %.2f): nessuna nuova mosca.", brain.rtAvg());
-        };
     }
 
     private static void msg(CommandSender s, String text, NamedTextColor color) {

@@ -8,6 +8,7 @@ Un Allay di Minecraft guidato dal connettoma della mosca della frutta
 - **Olfatto**: frutta e marcio entrano dalle antenne e arrivano al corno laterale.
 - **Gusto**: zucchero → MN9 (proboscide). Mangia la frutta e recupera vita.
 - **Tatto**: un colpo stimola le setole della testa; con un colpo forte scatta il riflesso di fuga.
+- **Nido**: una compostiera piena solo di frutta fa nascere una mosca.
 - **Camminata**: la genera il plugin (il "midollo"), perché FlyWire non contiene il cordone nervoso.
 
 Il modello è quello di Shiu et al. (Nature, 2024) con tre correzioni di errori del
@@ -46,6 +47,9 @@ python scripts\02_server.py          (cervelli + esploratore su http://127.0.0.1
 ```
 
 In gioco: `/mosca spawn`, `/mosca status`, `/mosca debug`, `/mosca remove [all]`.
+
+Senza comandi: riempi una compostiera **solo di frutta** (mele, bacche, anguria) e invece
+della farina d'ossa, dopo un po', ne esce una mosca.
 
 Ogni player può avere una mosca (`spawn.max-per-player` in `config.yml`); in più il
 server dei cervelli rifiuta nuove mosche se il tempo reale medio scende sotto `--spawn-rt`.

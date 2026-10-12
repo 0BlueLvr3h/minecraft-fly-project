@@ -70,6 +70,21 @@ public final class FlyManager {
         return Refusal.PC_LIMIT;
     }
 
+    /** Spiegazione in italiano del perché una mosca non nasce (per chat e messaggi). */
+    public String describe(Refusal r, UUID owner) {
+        return switch (r) {
+            case OWN_LIMIT -> {
+                FlyController mine = owner != null ? ownedBy(owner) : null;
+                yield "hai già la tua mosca" + (mine != null ? " (mosca " + mine.id() + ")" : "")
+                        + ", massimo " + cfg.maxPerPlayer() + " per player.";
+            }
+            case WAIT -> "il PC sta ancora misurando l'ultima mosca nata, riprova tra qualche secondo.";
+            case MAX -> "raggiunto il numero massimo di mosche del server dei cervelli.";
+            case PC_LIMIT -> String.format(java.util.Locale.ROOT,
+                    "il PC dei cervelli è al limite (tempo reale %.2f).", brain.rtAvg());
+        };
+    }
+
     /** Quante mosche vive ha fatto nascere questo player. */
     public int owned(UUID owner) {
         int n = 0;

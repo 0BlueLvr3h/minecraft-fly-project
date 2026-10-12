@@ -29,6 +29,19 @@ spinal:
 spawn:
   max-per-player: 1
 
+# Nido: una compostiera riempita SOLO di frutta, invece della farina d'ossa, fa nascere
+# una mosca (la Drosophila depone le uova nella frutta che fermenta). Basta un item
+# diverso, o una tramoggia, e torna una compostiera normale fino a quando la svuoti.
+# La mosca è di chi ha messo l'ultimo frutto e rispetta i limiti qui sopra.
+nest:
+  enabled: true
+  hatch-seconds: 20    # quanto "fermenta" la compostiera piena prima che nasca la mosca
+  fruits:
+    - APPLE
+    - SWEET_BERRIES
+    - GLOW_BERRIES
+    - MELON_SLICE
+
 # Vita: la mosca ha i punti vita dell'Allay (20 = 10 cuori), mostrati nel nome.
 # Mangiando recupera vita.
 health:

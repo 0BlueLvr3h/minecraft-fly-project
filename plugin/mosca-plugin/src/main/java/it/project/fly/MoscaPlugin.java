@@ -18,6 +18,7 @@ public final class MoscaPlugin extends JavaPlugin {
 
     private BrainLink brain;
     private FlyManager flies;
+    private NestListener nests;
 
     @Override
     public void onEnable() {
@@ -30,6 +31,10 @@ public final class MoscaPlugin extends JavaPlugin {
         flies.removeLeftovers();
 
         getServer().getPluginManager().registerEvents(new FlyListener(flies), this);
+        if (settings.nestEnabled()) {
+            nests = new NestListener(flies);
+            getServer().getPluginManager().registerEvents(nests, this);
+        }
 
         MoscaCommand cmd = new MoscaCommand(flies, brain);
         PluginCommand pc = getCommand("mosca");
@@ -46,6 +51,7 @@ public final class MoscaPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (nests != null) nests.shutdown();
         if (flies != null) flies.removeAll();
         if (brain != null) brain.stop();
     }
