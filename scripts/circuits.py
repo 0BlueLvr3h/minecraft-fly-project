@@ -87,6 +87,18 @@ WALK_FULL_HZ = 40.0        # differenza avanti-indietro (Hz) che vale "velocità
 TURN_FULL_HZ = 40.0        # differenza DNa02 sinistra-destra (Hz) che vale "sterzata piena"
 
 
+# Odori dei player: ogni player ha un odore suo, scelto da 17_odori_player.py tra quelli
+# che il cervello distingue meglio. I recettori saturano: a PLAYER_HALF di concentrazione
+# danno già metà della risposta (gli ORN veri rispondono in modo sublineare).
+PLAYER_HALF = 0.3
+
+
+def player_rate(conc):
+    """Hz sugli ORN di un odore di player alla concentrazione conc (0..1), intensità 1."""
+    conc = max(0.0, min(1.0, float(conc)))
+    return ODOR_RATE * conc / (conc + PLAYER_HALF) * (1 + PLAYER_HALF)
+
+
 def _rate(delta, idx, window_s):
     """Frequenza media (Hz) di un gruppo nella finestra."""
     if len(idx) == 0:
