@@ -29,6 +29,10 @@ public record Settings(
         boolean nestEnabled,
         int hatchSeconds,
         Set<Material> nestFruits,
+        double memoryMin,
+        double followValence,
+        double followDistance,
+        double keepDistance,
         Map<String, Double> valence,
         Map<Material, String> odors) {
 
@@ -91,6 +95,10 @@ public record Settings(
                 c.getBoolean("nest.enabled", true),
                 Math.max(1, c.getInt("nest.hatch-seconds", 20)),
                 fruits,
+                clamp(c.getDouble("memory.min-valence", 0.1), 0, 1),
+                clamp(c.getDouble("memory.follow-valence", 0.2), 0, 2),
+                Math.max(1.0, c.getDouble("memory.follow-distance", 4.0)),
+                Math.max(0.5, c.getDouble("memory.keep-distance", 2.0)),
                 valence,
                 odors);
     }

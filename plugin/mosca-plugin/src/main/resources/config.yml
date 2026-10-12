@@ -50,6 +50,15 @@ nest:
 health:
   heal-per-bite: 2.0   # punti vita recuperati ogni 3 secondi di pasto (2 = un cuore)
 
+# Memoria: la mosca impara chi sei dall'odore (ogni player ne ha uno suo). Se mangia
+# mentre sei vicino, il tuo odore diventa "buono"; se la colpisci, "cattivo". Lo impara
+# il corpo fungiforme del cervello (scripts/memory.py); qui solo come lo usa il corpo.
+memory:
+  min-valence: 0.1       # sotto questa valenza (in valore assoluto) un player le è indifferente
+  follow-valence: 0.2    # sopra questa: se resti indietro ti raggiunge con un breve volo
+  follow-distance: 4.0   # blocchi oltre i quali vola verso di te
+  keep-distance: 2.0     # blocchi a cui si ferma vicino a te
+
 # Preferenza innata per ogni odore: + = ci va incontro, - = lo evita (da -1 a 1)
 valence:
   fruity: 1.0

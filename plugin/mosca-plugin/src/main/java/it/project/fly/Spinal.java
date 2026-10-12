@@ -15,6 +15,8 @@ import java.util.Random;
  *  - odori: quando il CERVELLO percepisce un odore (valore 0..1 dal server),
  *    gira verso la sorgente se l'odore è attraente, via se è avversivo.
  *    Più il cervello lo sente forte, più l'odore prende il sopravvento.
+ *  - player: l'odore di un player non è né buono né cattivo di nascita. Lo diventa
+ *    con l'esperienza: la valenza la dà la memoria del corpo fungiforme (server).
  *
  * La fuga NON passa da qui: la decide interamente il cervello.
  */
@@ -40,7 +42,7 @@ public final class Spinal {
         this.cfg = cfg;
     }
 
-    public Drive step(Map<String, Double> perceive, List<Source> sources, boolean blocked) {
+    public Drive step(Map<String, Double> perceive, List<Source> sources, boolean blocked, double playerValence) {
         // --- camminata spontanea -------------------------------------------
         if (--phaseTicks <= 0) {
             walking = rng.nextDouble() < cfg.activity();
@@ -75,11 +77,33 @@ public final class Spinal {
             }
         }
 
+        // --- player: buono o cattivo secondo la memoria -----------------------
+        boolean player = false;
+        double pv = Math.abs(playerValence);
+        if (pv >= cfg.memoryMin()) {
+            double strength = Math.min(1.0, pv * 2.5);
+            Source src = nearest(sources, "player");
+            if (src != null && strength > best) {
+                best = strength;
+                bestOdor = "player";
+                player = true;
+                if (playerValence > 0) {              // lo conosce e le piace: ti viene vicino
+                    oTurn = clamp(src.angle() / TURN_GAIN, -1, 1);
+                    oFwd = src.dist() > cfg.keepDistance() ? 1.0 - 0.5 * Math.abs(oTurn) : 0.0;
+                } else {                              // si ricorda che le hai fatto male: via
+                    double away = src.angle() > 0 ? src.angle() - 180 : src.angle() + 180;
+                    oTurn = clamp(away / TURN_GAIN, -1, 1);
+                    oFwd = 1.0 - 0.5 * Math.abs(oTurn);
+                }
+            }
+        }
+
         // --- miscela: più l'odore è forte, più comanda lui ------------------
         double w = clamp(best * 1.5, 0, 1);
         double fwd = wFwd * (1 - w) + oFwd * w;
         double turn = wTurn * (1 - w) + oTurn * w;
         String mode = bestOdor == null ? (walking ? "passeggia" : "ferma")
+                : player ? (playerValence > 0 ? "segue un player che conosce" : "evita un player che le ha fatto male")
                 : (cfg.valence().getOrDefault(bestOdor, 0.0) > 0 ? "segue " : "evita ") + bestOdor;
 
         if (blocked) {                                // davanti c'è un muro: gira

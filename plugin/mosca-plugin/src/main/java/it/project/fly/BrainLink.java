@@ -30,12 +30,15 @@ public final class BrainLink {
      * Un messaggio "motor" dal cervello.
      * fwd/left: direzione di fuga. walkFwd/walkTurn: camminata letta dai DN (solo debug).
      * perceive: quanto il cervello sente ogni odore (0..1).
+     * memValence: cosa ricorda dell'odore di player che sente adesso (+ buono, - cattivo);
+     * memFamiliar: quanto il corpo fungiforme sta sentendo quell'odore (0..1).
      */
     public record Motor(boolean takeoff, double fwd, double left,
                         double walkFwd, double walkTurn,
                         double loomL, double loomR, int gfL, int gfR, double rt,
                         Map<String, Double> perceive, int spikes,
-                        double mn9, boolean feeding, double groom, boolean grooming) {}
+                        double mn9, boolean feeding, double groom, boolean grooming,
+                        double memValence, double memFamiliar, double playerSmell) {}
 
     private final JavaPlugin plugin;
     private final URI uri;
@@ -211,6 +214,7 @@ public final class BrainLink {
         JsonArray gf = o.getAsJsonArray("gf");
         JsonObject esc = o.getAsJsonObject("escape");
         JsonObject walk = o.has("walk") ? o.getAsJsonObject("walk") : null;
+        JsonObject mem = o.has("memory") ? o.getAsJsonObject("memory") : null;
         Map<String, Double> perceive = new HashMap<>();
         if (o.has("perceive")) {
             JsonObject p = o.getAsJsonObject("perceive");
@@ -229,7 +233,10 @@ public final class BrainLink {
                 o.has("mn9") ? o.get("mn9").getAsDouble() : 0.0,
                 o.has("feeding") && o.get("feeding").getAsBoolean(),
                 o.has("groom") ? o.get("groom").getAsDouble() : 0.0,
-                o.has("grooming") && o.get("grooming").getAsBoolean());
+                o.has("grooming") && o.get("grooming").getAsBoolean(),
+                mem != null ? mem.get("valence").getAsDouble() : 0.0,
+                mem != null ? mem.get("familiar").getAsDouble() : 0.0,
+                o.has("player_smell") ? o.get("player_smell").getAsDouble() : 0.0);
         return m;
     }
 

@@ -103,6 +103,9 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
                     msg(sender, String.format(Locale.ROOT,
                             "Looming L/R: %.2f / %.2f   Giant Fiber L/R: %d / %d   MN9 %.0f Hz   pulizia %.0f Hz",
                             m.loomL(), m.loomR(), m.gfL(), m.gfR(), m.mn9(), m.groom()), NamedTextColor.GRAY);
+                    msg(sender, String.format(Locale.ROOT,
+                            "Memoria: odore di player sentito %.2f, valenza imparata %+.2f (adesso %+.2f)",
+                            m.memFamiliar(), fly.memory(), m.memValence()), NamedTextColor.GRAY);
                     StringBuilder p = new StringBuilder("Percezione odori:");
                     m.perceive().forEach((k, v) -> p.append(String.format(Locale.ROOT, " %s %.2f", k, v)));
                     msg(sender, p.toString(), NamedTextColor.GRAY);

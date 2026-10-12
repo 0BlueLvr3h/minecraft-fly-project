@@ -115,6 +115,11 @@
   <div class="meter cervello"><span>Frutta</span><div class="bar"><i id="m-fruity"></i></div><span class="val" id="v-fruity">0</span></div>
   <div class="meter cervello"><span>Marcio</span><div class="bar"><i id="m-rotten"></i></div><span class="val" id="v-rotten">0</span></div>
   <div class="meter senso"><span>Colpo</span><div class="bar"><i id="m-touch"></i></div><span class="val" id="v-touch">0</span></div>
+  <div class="meter senso"><span>Un player</span><div class="bar"><i id="m-player"></i></div><span class="val" id="v-player">0</span></div>
+
+  <h2>Cosa ricorda</h2>
+  <div class="meter cervello"><span>Buono</span><div class="bar"><i id="m-good"></i></div><span class="val" id="v-good">0</span></div>
+  <div class="meter azione"><span>Cattivo</span><div class="bar"><i id="m-bad"></i></div><span class="val" id="v-bad">0</span></div>
 
   <h2>Cosa fa</h2>
   <div class="meter azione"><span>Giant Fiber</span><div class="bar"><i id="m-gf"></i></div><span class="val" id="v-gf">0</span></div>
@@ -524,6 +529,11 @@ function onMotor(m) {
   const touch = Math.max(...(m.touch ?? [0, 0]));
   meter("touch", touch, touch.toFixed(2));
   meter("groom", (m.groom ?? 0) / 150, Math.round(m.groom ?? 0));
+  const ps = m.player_smell ?? 0;
+  meter("player", ps, ps.toFixed(2));
+  const val = m.memory?.valence ?? 0;
+  meter("good", Math.max(0, val) * 2, val > 0 ? val.toFixed(2) : "0");
+  meter("bad", Math.max(0, -val) * 2, val < 0 ? (-val).toFixed(2) : "0");
   const mn9 = m.mn9_avg ?? m.mn9 ?? 0;
   meter("mn9", mn9 / 100, Math.round(mn9));
   spikeHist.push(m.spikes ?? 0);

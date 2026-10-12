@@ -19,7 +19,8 @@ final class DebugLog implements AutoCloseable {
             "brain", "rt", "spikes", "loomL", "loomR", "gfL", "gfR", "takeoff",
             "esc_fwd", "esc_left", "walk_fwd", "walk_turn", "perc_fruity", "perc_rotten",
             "player", "dist", "speed", "angle", "held_odor",
-            "taste", "mn9", "feeding", "touchL", "touchR", "groom", "grooming", "health");
+            "taste", "mn9", "feeding", "touchL", "touchR", "groom", "grooming", "health",
+            "pain", "mem_valence", "mem_smooth", "mem_familiar");
 
     private final BufferedWriter out;
     private final File file;

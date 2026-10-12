@@ -77,6 +77,10 @@ public final class FlyController {
     private final Map<UUID, double[]> lastSeen = new HashMap<>();   // debug: dist, velocità, angolo
     private final Map<UUID, String> heldOdor = new HashMap<>();     // debug: odore in mano
     private boolean tookOff;
+    private boolean hopping;                         // volo verso un player (non una fuga)
+    private int hopCooldown;
+    private double pain;                             // dolore di un colpo (0..1): la punizione per la memoria
+    private double memValence;                       // cosa ricorda dell'odore di player che sente (smussato)
     private boolean reflexTakeoff;                   // decollo dal riflesso del corpo (non dal cervello)
     private double lastHitAngle;
     private double taste;                            // zucchero sotto le zampe (0..1)
@@ -170,7 +174,8 @@ public final class FlyController {
     public int takeoffs() { return takeoffs; }
     public double walkFwd() { return walkFwd; }
     public double walkTurn() { return walkTurn; }
-    public String mode() { return state == State.FLYING ? "in fuga" : mode; }
+    public String mode() { return state == State.FLYING ? (hopping ? "vola verso un player" : "in fuga") : mode; }
+    public double memory() { return memValence; }
 
     // --------------------------------------------------------------- tick
 
@@ -185,6 +190,9 @@ public final class FlyController {
         if (fly == null || fly.isDead() || !fly.isValid()) return;
         tick++;
         Location loc = fly.getLocation();
+        BrainLink.Motor last = brain.latest(id);
+        if (last != null) memValence += (last.memValence() - memValence) * 0.05;   // circa un secondo
+        if (hopCooldown > 0) hopCooldown--;
 
         BrainLink.Motor takeoff = brain.pollTakeoff(id);   // consumato anche in volo
         tookOff = reflexTakeoff;
@@ -207,10 +215,11 @@ public final class FlyController {
         Location at = fly.getLocation();
         String base = String.format(Locale.ROOT, "%s,%d,%d,%s,%.2f,%.2f,%.2f,%.1f",
                 id, log.elapsed(), tick, mode().replace(',', ' '), at.getX(), at.getY(), at.getZ(), at.getYaw());
-        String tastePart = String.format(Locale.ROOT, ",%.2f,%.1f,%d,%.2f,%.2f,%.1f,%d,%.1f",
+        String tastePart = String.format(Locale.ROOT, ",%.2f,%.1f,%d,%.2f,%.2f,%.1f,%d,%.1f,%.2f,%.3f,%.3f,%.3f",
                 taste, m == null ? 0.0 : m.mn9(), m != null && m.feeding() ? 1 : 0,
                 touchL, touchR, m == null ? 0.0 : m.groom(), m != null && m.grooming() ? 1 : 0,
-                fly.getHealth());
+                fly.getHealth(), pain, m == null ? 0.0 : m.memValence(), memValence,
+                m == null ? 0.0 : m.memFamiliar());
         String brainPart = m == null
                 ? "0,,,,,,,,,,,,,"
                 : String.format(Locale.ROOT, "1,%.2f,%d,%.3f,%.3f,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f",
@@ -239,8 +248,8 @@ public final class FlyController {
         return m == null
                 ? "Mosca " + id + ": cervello non collegato | " + you + " | " + mode()
                 : String.format(Locale.ROOT,
-                        "Mosca %s | tu: %s | vita %.0f | looming %.2f/%.2f | GF %d/%d | MN9 %.0f | %s | spike %d | rt %.2f",
-                        id, you, health(), m.loomL(), m.loomR(), m.gfL(), m.gfR(), m.mn9(), mode(),
+                        "Mosca %s | tu: %s | vita %.0f | memoria %+.2f | looming %.2f/%.2f | GF %d/%d | MN9 %.0f | %s | spike %d | rt %.2f",
+                        id, you, health(), memValence, m.loomL(), m.loomR(), m.gfL(), m.gfR(), m.mn9(), mode(),
                         m.spikes(), m.rt());
     }
 
@@ -292,6 +301,15 @@ public final class FlyController {
                 taste = 1.0;                         // è sulla mano con la frutta
             }
             heldOdor.put(p.getUniqueId(), held != null ? held : (off != null ? off : ""));
+
+            // antenne: l'odore del player stesso (ognuno ha il suo, lo sceglie il server)
+            JsonObject body = new JsonObject();
+            body.addProperty("odor", "player");
+            body.addProperty("player", p.getUniqueId().toString());
+            body.addProperty("angle", round(angle));
+            body.addProperty("dist", round(dist));
+            odors.add(body);
+            sources.add(new Spinal.Source("player", angle, dist));
         }
         lastPos.keySet().retainAll(seen);
         lastSeen.keySet().retainAll(seen);
@@ -317,6 +335,9 @@ public final class FlyController {
         touchObj.addProperty("L", round(touchL));
         touchObj.addProperty("R", round(touchR));
         msg.add("touch", touchObj);
+        msg.addProperty("pain", round(pain));
+        pain *= 0.95;                                // il dolore dura di più: circa 1,5 s
+        if (pain < 0.02) pain = 0;
         touchL *= 0.8;                               // il tocco svanisce in circa 0,3 s
         touchR *= 0.8;
         if (touchL < 0.02) touchL = 0;
@@ -353,8 +374,16 @@ public final class FlyController {
             return;
         }
         if (taste <= 0) feedTicks = 0;               // il pasto ricomincia solo se si allontana
-        Spinal.Drive d = spinal.step(m != null ? m.perceive() : null, sources, blocked);
+        Spinal.Drive d = spinal.step(m != null ? m.perceive() : null, sources, blocked, memValence);
         mode = d.mode();
+
+        // ti ha imparato e sei rimasto indietro: ti raggiunge con un breve volo
+        Spinal.Source you = nearestPlayer();
+        if (you != null && memValence >= cfg.followValence() && you.dist() > cfg.followDistance()
+                && hopCooldown <= 0) {
+            startHop(loc, you);
+            return;
+        }
         double a = cfg.smoothing();
         walkFwd += (d.fwd() - walkFwd) * a;
         walkTurn += (d.turn() - walkTurn) * a;
@@ -406,6 +435,7 @@ public final class FlyController {
         Location loc = fly.getLocation();
         double strength = clamp(damage / 6.0, 0.3, 1.0);   // pugno ~0,3, spada ~1
         Vector d = feel(from, strength);
+        pain = Math.max(pain, strength);                   // dura circa un secondo e mezzo
         Vector f = forward(loc.getYaw());
 
         if (cfg.hitReflex() > 0 && strength >= cfg.hitReflex() && state == State.GROUND) {
@@ -418,8 +448,35 @@ public final class FlyController {
             flightTicks = 0;
             takeoffs++;
             reflexTakeoff = true;
+            hopping = false;
             loc.getWorld().spawnParticle(Particle.CLOUD, loc, 6, 0.15, 0.1, 0.15, 0.02);
         }
+    }
+
+    /**
+     * Breve volo verso un player che la mosca ha imparato come buono. Nella mosca vera
+     * è il volo controvento verso un odore attraente; qui la direzione la dà il midollo
+     * (dove si trova la sorgente), il "perché" la memoria del corpo fungiforme.
+     */
+    private void startHop(Location loc, Spinal.Source to) {
+        Vector f = forward(loc.getYaw());
+        Vector l = left(f);
+        double a = Math.toRadians(to.angle());
+        Vector dir = f.multiply(Math.cos(a)).add(l.multiply(Math.sin(a))).normalize();
+        double speed = clamp((to.dist() - cfg.keepDistance()) / 10.0, 0.15, TAKEOFF_SPEED);   // si ferma vicino
+        vel = dir.multiply(speed).setY(0.2);
+        state = State.FLYING;
+        flightTicks = 0;
+        hopping = true;
+        hopCooldown = 30;
+    }
+
+    private Spinal.Source nearestPlayer() {
+        Spinal.Source best = null;
+        for (Spinal.Source s : sources) {
+            if ("player".equals(s.odor()) && (best == null || s.dist() < best.dist())) best = s;
+        }
+        return best;
     }
 
     /** Discendenti delle setole accesi: la mosca si ferma e si strofina. */
@@ -523,6 +580,7 @@ public final class FlyController {
             state = State.GROUND;                        // atterra: riprende a camminare
             baseY = next.getY();
             walkFwd = walkTurn = 0;
+            hopping = false;
         }
     }
 

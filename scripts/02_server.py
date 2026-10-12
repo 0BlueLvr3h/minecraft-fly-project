@@ -18,14 +18,18 @@ Protocollo (JSON):
     {"type": "remove", "fly": "3"}  /  {"type": "death", "fly": "3"}
     {"type": "senses", "flies": {"3": {...sensi...}, "4": {...}}}   ogni tick
        sensi = {"threats": [{"angle", "dist", "speed"}], "odors": [{"odor", "angle", "dist"}],
-                "taste": {"sweet": 0..1}, "touch": {"L": 0..1, "R": 0..1}}
+                "taste": {"sweet": 0..1}, "touch": {"L": 0..1, "R": 0..1}, "pain": 0..1}
+       odore di un player: {"odor": "player", "player": "<uuid>", "angle", "dist"}
+       pain = dolore di un colpo (dura circa un secondo): è la punizione per la memoria
        angle = gradi rispetto alla direzione della mosca, positivo = a sinistra
 
   server -> plugin, ogni finestra di simulazione (50 ms di cervello)
     {"type": "motors", "rt": 1.8, "can_spawn": true,
      "flies": {"3": {...comandi...}, ...}}
        comandi = {"looming", "touch", "smell", "gf", "takeoff", "escape", "perceive",
-                  "mn9", "mn9_avg", "feeding", "groom", "grooming", "walk", "dn", "spikes"}
+                  "mn9", "mn9_avg", "feeding", "groom", "grooming", "walk", "dn", "spikes",
+                  "memory": {"valence", "familiar", "reward", "punish"}}
+       memory.valence = cosa ha imparato dell'odore che sente adesso (+ buono, - cattivo)
 
   Esploratore 3D (client "viewer"):
     -> {"type": "hello", "role": "viewer"}
@@ -56,17 +60,19 @@ from websockets.asyncio.server import serve
 
 from circuits import FlyCircuits
 from flysim import RECOMMENDED, FlyBrain
+from memory import MushroomBody
 
 WINDOW_MS = 50.0                  # = 1 tick di Minecraft
 EXPLORER = Path(__file__).resolve().parent.parent / "explorer"
-NO_SENSES = {"threats": [], "odors": [], "taste": {}, "touch": {}}
+NO_SENSES = {"threats": [], "odors": [], "taste": {}, "touch": {}, "pain": 0.0}
 
 
 class Fly:
     """Un cervello con i suoi circuiti, i suoi sensi e i suoi stimoli dall'esploratore."""
 
-    def __init__(self, fid, brain, circ, owner):
-        self.id, self.brain, self.circ, self.owner = fid, brain, circ, owner
+    def __init__(self, fid, brain, circ, mb, owner):
+        self.id, self.brain, self.circ, self.mb, self.owner = fid, brain, circ, mb, owner
+        self.reward = self.punish = 0.0
         self.senses = dict(NO_SENSES)
         self.extra = []                   # stimoli dall'esploratore: [idx, hz, fino_a_ms]
         self.out = None
@@ -79,6 +85,12 @@ class Fly:
         self.loom = self.circ.looming(s.get("threats", []))
         self.smell = self.circ.smell(s.get("odors", []))
         self.circ.apply(self.loom, self.smell, s.get("taste", {}), s.get("touch", {}))
+        # rinforzo per la memoria: lo zucchero sotto le zampe è la ricompensa, un colpo la
+        # punizione. Nel modello queste vie non arrivano ai dopaminergici: li accendiamo noi.
+        self.reward = min(1.0, float(s.get("taste", {}).get("sweet", 0.0)))
+        self.punish = min(1.0, float(s.get("pain", 0.0)))
+        for idx, hz in self.mb.reinforcement(self.reward, self.punish):
+            self.brain.add_stimulus(idx, hz)
         now = self.brain.t * self.brain.dt
         self.extra = [e for e in self.extra if e[2] > now]
         for idx, hz, _ in self.extra:
@@ -88,21 +100,27 @@ class Fly:
         before = self.brain.counts.copy()
         self.brain.run(WINDOW_MS)
         self.delta = self.brain.counts - before
-        self.out = self.circ.decode(self.delta, WINDOW_MS)
+        out = self.circ.decode(self.delta, WINDOW_MS)
+        self.mb.update(self.delta, WINDOW_MS)
+        out["memory"] = {"valence": round(self.mb.valence, 3), "familiar": round(self.mb.familiar, 3),
+                         "reward": round(self.reward, 2), "punish": round(self.punish, 2)}
+        self.out = out
 
     def motor(self):
         t = self.senses.get("touch", {})
         return {
             "looming": [round(self.loom["L"], 3), round(self.loom["R"], 3)],
             "touch": [round(float(t.get("L", 0)), 2), round(float(t.get("R", 0)), 2)],
-            "smell": {k: [round(v["L"], 3), round(v["R"], 3)] for k, v in self.smell.items()},
+            "smell": {k: [round(v["L"], 3), round(v["R"], 3)] for k, v in self.smell.items() if k != "players"},
+            "player_smell": round(max((max(v["L"], v["R"]) for v in self.smell.get("players", {}).values()),
+                                      default=0.0), 3),
             **self.out,
         }
 
 
 class Server:
-    def __init__(self, template, circ_template, spawn_rt, max_flies):
-        self.template, self.circ_template = template, circ_template
+    def __init__(self, template, circ_template, mb_template, spawn_rt, max_flies):
+        self.template, self.circ_template, self.mb_template = template, circ_template, mb_template
         self.spawn_rt, self.max_flies = spawn_rt, max_flies
         self.flies = {}                   # id -> Fly
         self.clients = set()
@@ -134,7 +152,8 @@ class Server:
         brain = self.template.sibling(seed=self.seed)
         self.seed += 1
         self.last_spawn = time.monotonic()
-        self.flies[fid] = Fly(fid, brain, self.circ_template.sibling(brain), owner)
+        self.flies[fid] = Fly(fid, brain, self.circ_template.sibling(brain),
+                              self.mb_template.sibling(brain), owner)
         print(f"  + mosca {fid} ({len(self.flies)} in tutto, tempo reale medio {self.rt_avg:.2f})")
         for ws, watching in list(self.viewers.items()):
             if watching is None or watching not in self.flies:
@@ -266,7 +285,7 @@ class Server:
             await asyncio.sleep(max(0.0, win - elapsed))
 
 
-def explorer_data(brain, circ, ws_port):
+def explorer_data(brain, circ, mb, ws_port):
     """I dati statici per l'esploratore: posizioni, classi, tipi, circuiti."""
     n = brain.neurons
     xyz = n[["x", "y", "z"]].to_numpy(np.float64)
@@ -300,6 +319,11 @@ def explorer_data(brain, circ, ws_port):
          "idx": grp(circ.odor["rotten"]["L"], circ.odor["rotten"]["R"])},
         {"name": "Zampe: zucchero", "role": "senso", "idx": grp(circ.sugar)},
         {"name": "Testa: setole e antenne", "role": "senso", "idx": grp(circ.touch["L"], circ.touch["R"])},
+        {"name": "Antenne: odori dei player", "role": "senso", "idx": grp(circ.players.all_idx())},
+        {"name": "Corpo fungiforme: cellule di Kenyon", "role": "cervello", "idx": grp(mb.kc)},
+        {"name": "Dopamina: ricompensa (PAM)", "role": "cervello", "idx": grp(mb.reward_idx)},
+        {"name": "Dopamina: punizione (PPL1)", "role": "cervello", "idx": grp(mb.punish_idx)},
+        {"name": "Uscite del corpo fungiforme (MBON)", "role": "cervello", "idx": grp(mb.mbon)},
         {"name": "Percezione della frutta", "role": "cervello", "idx": grp(circ.perceive_idx["fruity"])},
         {"name": "Percezione del marcio", "role": "cervello", "idx": grp(circ.perceive_idx["rotten"])},
         {"name": "Giant Fiber", "role": "azione", "idx": grp(circ.gf["L"], circ.gf["R"])},
@@ -395,8 +419,14 @@ async def main():
           + f"  ({time.perf_counter() - t0:.1f} s)")
     print(f"   Nuove mosche finché il tempo reale medio resta sopra {args.spawn_rt}")
 
-    server = Server(template, circ, args.spawn_rt, args.max_flies)
-    start_http(args.host, args.http_port, explorer_data(template, circ, args.port))
+    t0 = time.perf_counter()
+    mb = MushroomBody(template)
+    print(f"   Memoria (corpo fungiforme): {len(mb.pos):,} sinapsi KC->MBON che imparano, "
+          f"{(mb.comp == 1).sum()} MBON di ricompensa e {(mb.comp == -1).sum()} di punizione letti "
+          f"({time.perf_counter() - t0:.1f} s)")
+
+    server = Server(template, circ, mb, args.spawn_rt, args.max_flies)
+    start_http(args.host, args.http_port, explorer_data(template, circ, mb, args.port))
     async with serve(server.handler, args.host, args.port, max_size=2**22):
         print(f"In ascolto su ws://{args.host}:{args.port}  (Ctrl+C per fermare)")
         print(f"Esploratore 3D: http://{args.host}:{args.http_port}")

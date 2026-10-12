@@ -8,11 +8,15 @@ Un Allay di Minecraft guidato dal connettoma della mosca della frutta
 - **Olfatto**: frutta e marcio entrano dalle antenne e arrivano al corno laterale.
 - **Gusto**: zucchero → MN9 (proboscide). Mangia la frutta e recupera vita.
 - **Tatto**: un colpo stimola le setole della testa; con un colpo forte scatta il riflesso di fuga.
+- **Memoria**: riconosce i player dall'odore e impara nel corpo fungiforme. Se mangia
+  mentre sei vicino ti segue (e ti raggiunge in volo se resti indietro); se la colpisci ti evita.
 - **Nido**: una compostiera piena solo di frutta fa nascere una mosca.
 - **Camminata**: la genera il plugin (il "midollo"), perché FlyWire non contiene il cordone nervoso.
 
 Il modello è quello di Shiu et al. (Nature, 2024) con tre correzioni di errori del
 connettoma e un adattamento leggero: vedi `RECOMMENDED` in `scripts/flysim.py`.
+La memoria aggiunge l'unica plasticità misurata nella mosca vera (sinapsi KC -> MBON che
+si indeboliscono con la dopamina): vedi `scripts/memory.py`.
 
 ## Struttura
 
@@ -36,6 +40,7 @@ data/           dati FlyWire: NON nel repository, vedi sotto
    .venv\Scripts\Activate.ps1
    pip install -r requirements.txt
    python scripts\00_prepare.py
+   python scripts\17_odori_player.py      (sceglie gli odori dei player, qualche minuto)
    ```
 3. **Plugin**: apri `plugin` in IntelliJ, task Gradle `build`, copia
    `build/libs/mosca-*.jar` nella cartella `plugins` del server Paper.

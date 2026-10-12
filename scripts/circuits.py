@@ -6,6 +6,7 @@ Qui sta tutta la "traduzione" tra il mondo di Minecraft e i neuroni:
   SENSI   (mondo -> neuroni)
     occhi:     player che si avvicinano  -> LC4, LPLC2      (looming)
     antenne:   odori degli item          -> ORN dei glomeruli olfattivi
+               odore di ogni player      -> il suo mix di glomeruli (PlayerOdors)
     rumore:    attività spontanea         -> neuroni sensoriali
 
   MOTORI  (neuroni -> mondo)
@@ -17,9 +18,12 @@ Tutti i numeri regolabili sono in cima al file. Lo usano sia il server
 """
 
 import copy
+import json
 import math
 
 import numpy as np
+
+from flysim import PROC
 
 # ---------------------------------------------------------------- neuroni
 LOOM_TYPES = ["LC4", "LPLC2"]                     # rilevatori di "qualcosa che arriva"
@@ -99,6 +103,54 @@ def player_rate(conc):
     return ODOR_RATE * conc / (conc + PLAYER_HALF) * (1 + PLAYER_HALF)
 
 
+class PlayerOdors:
+    """Gli odori dei player. Gli odori li sceglie 17_odori_player.py (quelli che il cervello
+    distingue meglio); qui ogni player riceve il suo la prima volta che una mosca lo sente,
+    e lo tiene per sempre (data/processed/player_assign.json). È l'odore del player, non
+    della mosca: tutte le mosche lo sentono uguale."""
+
+    FILE = PROC / "player_odors.json"
+    ASSIGN = PROC / "player_assign.json"
+
+    def __init__(self, brain, sides):
+        self.odors = []                         # per odore: {"L": (idx, intensità), "R": (...)}
+        if self.FILE.exists():
+            for o in json.loads(self.FILE.read_text(encoding="utf-8")):
+                od = {}
+                for s in "LR":
+                    idx = [brain.find(g, sides[s]) for g in o["glomeruli"]]
+                    w = [np.full(len(i), x, np.float32) for i, x in zip(idx, o["profile"])]
+                    od[s] = (np.concatenate(idx), np.concatenate(w))
+                self.odors.append(od)
+        try:
+            self.assign = json.loads(self.ASSIGN.read_text(encoding="utf-8")) if self.ASSIGN.exists() else {}
+        except (OSError, ValueError):
+            self.assign = {}
+
+    def index(self, player):
+        """Indice dell'odore di un player (lo assegna se è nuovo), o None se non ci sono odori."""
+        if not self.odors:
+            return None
+        i = self.assign.get(player)
+        if i is None or i >= len(self.odors):
+            used = [0] * len(self.odors)
+            for v in self.assign.values():
+                if 0 <= v < len(used):
+                    used[v] += 1
+            i = used.index(min(used))                  # il meno usato: i primi player tutti diversi
+            self.assign[player] = i
+            try:
+                self.ASSIGN.write_text(json.dumps(self.assign, indent=1), encoding="utf-8")
+            except OSError:
+                pass
+        return i
+
+    def all_idx(self):
+        if not self.odors:
+            return np.array([], np.int64)
+        return np.unique(np.concatenate([o[s][0] for o in self.odors for s in "LR"]))
+
+
 def _rate(delta, idx, window_s):
     """Frequenza media (Hz) di un gruppo nella finestra."""
     if len(idx) == 0:
@@ -121,6 +173,7 @@ class FlyCircuits:
         self.turn = {s: brain.find(WALK_TURN, self.sides[s]) for s in "LR"}
         self.odor = {name: {s: cat(types, s) for s in "LR"} for name, types in ODORS.items()}
         self.noise = brain.find_superclass(NOISE_SUPERCLASS)
+        self.players = PlayerOdors(brain, self.sides)   # condiviso tra le mosche (sibling)
 
         roots = brain.neurons["root_id"] if "root_id" in brain.neurons else None
         self.sugar = (brain.neurons["idx"].to_numpy()[roots.isin(SUGAR_ROOT_IDS).to_numpy()]
@@ -200,6 +253,9 @@ class FlyCircuits:
             lines.append(f"Odore '{name}':{' ' * max(1, 15 - len(name))}{n(d)} ORN, "
                          f"percezione letta da {len(self.perceive_idx[name])} neuroni a valle")
         lines.append(f"Rumore di fondo su:     {len(self.noise)} neuroni sensoriali")
+        lines.append(f"Odori dei player:       {len(self.players.odors)} diversi"
+                     + (f", {len(self.players.assign)} player già conosciuti" if self.players.odors else
+                        " (manca data/processed/player_odors.json: lancia 17_odori_player.py)"))
         lines.append(f"Tatto:                  {len(self.touch['L'])} + {len(self.touch['R'])} neuroni "
                      f"(setole e antenne), pulizia letta da {len(self.groom)} discendenti")
         lines.append(f"Gusto:                  {len(self.sugar)} recettori dello zucchero, "
@@ -244,19 +300,28 @@ class FlyCircuits:
         return out
 
     def smell(self, odors):
-        """Concentrazione (0..1) di ogni odore per antenna."""
+        """Concentrazione (0..1) di ogni odore per antenna. Gli odori dei player stanno in
+        out["players"]: {indice dell'odore: {"L", "R"}}."""
         out = {name: {"L": 0.0, "R": 0.0} for name in ODORS}
+        out["players"] = {}
         for src in odors or []:
             name = src.get("odor")
-            if name not in out:
+            if name == "player":
+                i = self.players.index(str(src.get("player", "")))
+                if i is None:
+                    continue
+                dst = out["players"].setdefault(i, {"L": 0.0, "R": 0.0})
+            elif name in ODORS:
+                dst = out[name]
+            else:
                 continue
             d = max(0.0, float(src["dist"]))
             if d > MAX_RANGE:
                 continue
             c = 1.0 / (1.0 + (d / ODOR_D0) ** 2)
             s = math.sin(math.radians(self._norm_angle(src["angle"])))   # +1 = a sinistra
-            out[name]["L"] = min(1.0, out[name]["L"] + c * (0.5 + ODOR_LAT * s) * 2)
-            out[name]["R"] = min(1.0, out[name]["R"] + c * (0.5 - ODOR_LAT * s) * 2)
+            dst["L"] = min(1.0, dst["L"] + c * (0.5 + ODOR_LAT * s) * 2)
+            dst["R"] = min(1.0, dst["R"] + c * (0.5 - ODOR_LAT * s) * 2)
         return out
 
     def apply(self, loom, smell, taste=None, touch=None):
@@ -277,6 +342,11 @@ class FlyCircuits:
             for name, d in self.odor.items():
                 idx.append(d[s])
                 rates.append(np.full(len(d[s]), smell[name][s] * ODOR_RATE, np.float32))
+            for i, conc in smell.get("players", {}).items():
+                if conc[s] > 0:
+                    pidx, w = self.players.odors[i][s]
+                    idx.append(pidx)
+                    rates.append((player_rate(conc[s]) * w).astype(np.float32))
         self.brain.set_stimulus(np.concatenate(idx), np.concatenate(rates))
 
     # --------------------------------------------------------------- motori

@@ -50,8 +50,9 @@ DAN_RATE = 150.0          # Hz sui dopaminergici con rinforzo pieno
 KC_MIN_FRAC = 0.7         # MBON letti: almeno il 70% del loro input dalle KC
 TAU_KC = 1.0              # s: traccia di attività delle KC (quanto "ricorda" l'odore appena sentito)
 TAU_DAN = 0.5             # s: traccia della dopamina
-KC_ON = 1.0               # traccia KC (circa spike/s) sotto cui la KC non conta
-KC_FULL = 4.0             # traccia KC che vale "pienamente attiva"
+KC_ON = 3.0               # traccia KC (circa spike/s) sotto cui la KC non conta: impara solo
+                          # chi risponde forte, le KC più specifiche dell'odore (meno confusione)
+KC_FULL = 8.0             # traccia KC che vale "pienamente attiva"
 DAN_MIN = 25.0            # Hz di dopamina (media pesata per sinapsi) sotto cui non è rinforzo:
                           # i DAN hanno un'attività di fondo e qualche odore li accende un po'
 DAN_FULL = 75.0           # Hz di dopamina che valgono "rinforzo pieno"
