@@ -17,8 +17,9 @@ import java.util.Set;
 import java.util.EnumSet;
 import java.util.logging.Logger;
 
-/** Impostazioni lette da config.yml (con valori di default se mancano). */
+/** Settings read from config.yml (with default values when missing). */
 public record Settings(
+        String language,
         String brainUrl,
         Class<? extends Mob> bodyClass,
         String bodyName,
@@ -50,22 +51,30 @@ public record Settings(
         Map<Material, String> odors) {
 
     public static Settings load(FileConfiguration c, Logger log) {
+        // Language of in-game messages (lang/<language>.yml)
+        String rawLanguage = c.getString("language", Lang.DEFAULT);
+        String language = rawLanguage == null ? Lang.DEFAULT : rawLanguage.trim().toLowerCase(Locale.ROOT);
+        if (!language.matches("[a-z][a-z_-]{1,15}")) {           // file name lang/<language>.yml
+            log.warning("language: " + language + " is not a valid language code, using " + Lang.DEFAULT);
+            language = Lang.DEFAULT;
+        }
+
         Map<Material, String> odors = new EnumMap<>(Material.class);
         ConfigurationSection sec = c.getConfigurationSection("odors");
         if (sec == null) {
-            // config.yml vecchio, senza la sezione odori: usiamo questi
+            // old config.yml without the odors section: use these
             odors.put(Material.APPLE, "fruity");
             odors.put(Material.SWEET_BERRIES, "fruity");
             odors.put(Material.MELON_SLICE, "fruity");
             odors.put(Material.ROTTEN_FLESH, "rotten");
             odors.put(Material.SPIDER_EYE, "rotten");
-            log.info("Nessuna sezione 'odors' in config.yml: uso gli odori di default");
+            log.info("No 'odors' section in config.yml: using the default odors");
         } else {
             for (String key : sec.getKeys(false)) {
                 Material m = Material.matchMaterial(key.toUpperCase(Locale.ROOT));
                 String odor = sec.getString(key);
                 if (m == null || odor == null) {
-                    log.warning("Odore ignorato in config.yml: " + key);
+                    log.warning("Ignoring odor in config.yml: " + key);
                     continue;
                 }
                 odors.put(m, odor);
@@ -83,28 +92,29 @@ public record Settings(
             }
         }
 
-        // Nido: la frutta che, da sola, riempie una compostiera e fa nascere una mosca
+        // Nest: the fruit that, on its own, fills a composter and hatches a fly
         Set<Material> fruits = EnumSet.noneOf(Material.class);
         List<String> fruitNames = c.isList("nest.fruits") ? c.getStringList("nest.fruits")
                 : List.of("APPLE", "MELON_SLICE", "MELON", "PUMPKIN", "SWEET_BERRIES", "GLOW_BERRIES");
         for (String name : fruitNames) {
             Material m = Material.matchMaterial(name.toUpperCase(Locale.ROOT));
-            if (m == null) log.warning("Frutto ignorato in config.yml (nest.fruits): " + name);
+            if (m == null) log.warning("Ignoring fruit in config.yml (nest.fruits): " + name);
             else fruits.add(m);
         }
 
-        // Corpo: qualsiasi mob (ALLAY, BEE, PARROT...). Il cervello resta quello della Drosophila.
+        // Body: any mob (ALLAY, BEE, PARROT...). The brain is still the Drosophila one.
         Class<? extends Mob> body = Allay.class;
         String bodyType = c.getString("body.entity", "ALLAY");
         try {
             Class<? extends Entity> k = EntityType.valueOf(bodyType.toUpperCase(Locale.ROOT)).getEntityClass();
             if (k != null && Mob.class.isAssignableFrom(k)) body = k.asSubclass(Mob.class);
-            else log.warning("body.entity: " + bodyType + " non è un mob, uso ALLAY");
+            else log.warning("body.entity: " + bodyType + " is not a mob, using ALLAY");
         } catch (IllegalArgumentException e) {
-            log.warning("body.entity: " + bodyType + " sconosciuto, uso ALLAY");
+            log.warning("body.entity: " + bodyType + " is unknown, using ALLAY");
         }
 
         return new Settings(
+                language,
                 c.getString("brain-url", "ws://127.0.0.1:8765"),
                 body,
                 c.getString("body.name", "Mosca"),

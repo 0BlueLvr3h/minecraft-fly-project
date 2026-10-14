@@ -1,0 +1,85 @@
+# Messaggi del plugin Mosca in italiano.
+# Si può modificare liberamente la copia in plugins/Mosca/lang/it.yml (riavvia il server per applicare).
+# Le parole tra parentesi graffe, es. {id}, vengono sostituite dal plugin: lasciale come sono.
+# Le chiavi che mancano qui vengono prese dal file incluso nel plugin.
+
+command:
+  usage: "Uso: /mosca <spawn [force]|remove [all]|tp [numero]|status|debug>"
+  spawn:
+    players_only: "Solo un player può far nascere una mosca."
+    refused: "Nessuna nuova mosca: {reason} Usa /mosca spawn force per farla nascere comunque."
+    done: "È nata la mosca {id} ({count} in tutto)."
+  tp:
+    players_only: "Solo un player può chiamare una mosca."
+    none_own: "Non hai una mosca tua. Usa /mosca tp <numero>."
+    not_found: "Nessuna mosca {id}."
+    done: "La mosca {id} ti ha raggiunto."
+    no_space: "Non c'è un posto libero vicino a te per la mosca."
+  debug:
+    players_only: "Il debug si vede nell'action bar: solo per i player."
+    enabled: "Debug attivo (mostra la mosca più vicina), registro: plugins/Mosca/logs/{file}"
+    disabled: "Debug spento. Registro salvato: plugins/Mosca/logs/{file}"
+  remove:
+    all: "Rimosse {count} mosche."
+    none_near: "Nessuna mosca vicina. Per toglierle tutte: /mosca remove all"
+    done: "Rimossa la mosca {id}."
+
+# Perché una mosca non può nascere (usato in /mosca spawn e nei messaggi del nido)
+refusal:
+  own_limit: "hai già la tua mosca{which}, massimo {max} per player."
+  own_limit_which: " (mosca {id})"
+  wait: "il PC sta ancora misurando l'ultima mosca nata, riprova tra qualche secondo."
+  max: "raggiunto il numero massimo di mosche del server dei cervelli."
+  pc_limit: "il PC dei cervelli è al limite (tempo reale {rt})."
+
+status:
+  summary: "Mosche: {count}   cervelli: {brains}   tempo reale medio: {rt}   nuove nascite: {births}"
+  brains_connected: "collegati"
+  brains_disconnected: "NON collegati"
+  births_yes: "sì"
+  births_wait: "tra qualche secondo"
+  births_max: "no, massimo del server"
+  births_pc: "no, PC al limite"
+  own: "Le tue mosche: {owned} / {max}"
+  nearest: "Più vicina: mosca {id}, {mode}, vita {health}, decolli {takeoffs}"
+  brain: "Looming L/R: {loomL} / {loomR}   Giant Fiber L/R: {gfL} / {gfR}   MN9 {mn9} Hz   pulizia {groom} Hz   abituazione {habituation}%"
+  memory: "Memoria: odore di player sentito {familiar}, valenza imparata {learned} (adesso {now})"
+  favorite: "Le piace di più: {who}{you}"
+  favorite_player: "{name} ({liking})"
+  favorite_nobody: "nessuno"
+  favorite_you: ", tu {liking}"
+  odors: "Percezione odori:{odors}"
+
+fly:
+  died: "{name} {id} è morta."
+
+# Il nido: la compostiera piena di frutta
+nest:
+  stirring: "Qualcosa si muove nella frutta..."
+  fruit_scent: "Profumo di frutta..."
+  not_pure: "Non è più solo frutta: niente mosca da questa compostiera"
+  fermenting: "La frutta fermenta: qualcosa ci ha deposto le uova..."
+  blocked: "Nella tua compostiera c'è una mosca pronta a nascere, ma: {reason}"
+  hatched: "È nata la mosca {id} dalla tua compostiera!"
+
+# Action bar di /mosca debug
+debug:
+  line: "Mosca {id} | tu: {you} | vita {health} | memoria {memory} | looming {loomL}/{loomR} | GF {gfL}/{gfR} | MN9 {mn9} | {mode} | spike {spikes} | rt {rt}"
+  no_brain: "Mosca {id}: cervello non collegato | {you} | {mode}"
+  you: "{dist} blocchi, {speed} m/s"
+  out_of_range: "fuori portata"
+
+# Cosa sta facendo la mosca ({odor} = nome dell'odore, es. fruity)
+mode:
+  idle: "ferma"
+  wandering: "passeggia"
+  following_odor: "segue {odor}"
+  avoiding_odor: "evita {odor}"
+  following_player: "segue un player che conosce"
+  avoiding_player: "evita un player che le ha fatto male"
+  eating: "mangia"
+  grooming: "si pulisce"
+  escaping: "in fuga"
+  flying: "vola"
+  flying_to_player: "vola dietro a un player che conosce"
+  flying_to_odor: "vola verso {odor}"

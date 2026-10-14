@@ -1,20 +1,21 @@
 r"""
-Taratura di olfatto e fuga (con la configurazione del server)
---------------------------------------------------------------
-Dai registri di gioco sono emersi due problemi:
-  - l'odore accende troppo il cervello: rallenta, fa decollare la mosca senza
-    motivo e confonde frutta e marcio
-  - la fuga scatta troppo presto, anche avvicinandosi accovacciati
+Olfaction and escape tuning (with the server configuration)
+-----------------------------------------------------------
+Two problems emerged from the game logs:
+  - the odor excites the brain too much: it slows down, makes the fly take off
+    for no reason and confuses fruit with rotten
+  - the escape triggers too early, even when approaching while crouching
 
-Parte A: prova diverse intensità dell'odore (Hz sugli ORN). Per ognuna:
-         spike, tempo reale, decolli spuri, e quanto si distinguono i due odori.
-Parte B: prova diverse soglie di looming. Per ognuna simula un player che
-         arriva da 12 blocchi accovacciato, camminando e correndo, e misura a che
-         distanza la mosca decolla.
+Part A: tries several odor intensities (Hz on the ORNs). For each one:
+        spikes, real-time factor, spurious takeoffs, and how well the two odors
+        are told apart.
+Part B: tries several looming thresholds. For each one simulates a player
+        approaching from 12 blocks while crouching, walking and sprinting, and
+        measures at what distance the fly takes off.
 
-Uso:
-  python scripts\08_taratura.py              (configurazione consigliata)
-  python scripts\08_taratura.py --minimal    (solo correzione interneuroni)
+Usage:
+  python scripts\08_tuning.py              (recommended configuration)
+  python scripts\08_tuning.py --minimal    (interneuron fix only)
 """
 
 import time
@@ -29,11 +30,11 @@ WINDOW_MS = 50.0
 NONE = {"L": 0.0, "R": 0.0}
 ODOR_RATES = [10, 20, 40, 80]
 LOOM_MINS = [0.0, 0.15, 0.25, 0.35, 0.5]
-SPEEDS = [("accovacciato", 1.3), ("camminando", 4.3), ("correndo", 5.6)]
+SPEEDS = [("crouching", 1.3), ("walking", 4.3), ("sprinting", 5.6)]
 TRIALS = 3
 
 
-# Solo la correzione degli interneuroni: il modello più vicino all'originale di Shiu
+# Interneuron fix only: the model closest to Shiu's original
 MINIMAL = dict(fix_ln_modulatory=True)
 
 
@@ -63,7 +64,7 @@ def odor_test(brain, circ, name, level, seconds=1.5):
 
 
 def approach(brain, circ, speed, start=12.0, angle=30.0):
-    """Player che arriva dritto: distanza al primo decollo (None = mai)."""
+    """Player approaching in a straight line: distance at first takeoff (None = never)."""
     brain.reset()
     dist = start
     while dist > 0.4:
@@ -82,17 +83,17 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--minimal", action="store_true",
-                    help="solo la correzione degli interneuroni (senza adattamento né taglio KC->KC)")
+                    help="interneuron fix only (no adaptation, no KC->KC cut)")
     args = ap.parse_args()
     params = MINIMAL if args.minimal else RECOMMENDED
-    print(f"Configurazione: {'MINIMA' if args.minimal else 'consigliata'} {params}\n")
+    print(f"Configuration: {'MINIMAL' if args.minimal else 'recommended'} {params}\n")
     brain, circ = brain_like_server(params)
 
-    print("=== A. Intensità dell'odore")
-    print("    (percezione in Hz dei neuroni di frutta / marcio: per distinguerli,")
-    print("     con la frutta deve salire quella della frutta e restare bassa quella del marcio)")
-    print(f"    {'Hz ORN':>6s}  {'odore':8s} {'livello':>7s} {'spike/s':>10s} {'rt':>5s} {'GF':>4s}"
-          f" {'perc.frutta':>12s} {'perc.marcio':>12s}")
+    print("=== A. Odor intensity")
+    print("    (perception in Hz of the fruit / rotten neurons: to tell them apart,")
+    print("     with fruit the fruit one must rise while the rotten one stays low)")
+    print(f"    {'Hz ORN':>6s}  {'odor':8s} {'level':>7s} {'spikes/s':>10s} {'rt':>5s} {'GF':>4s}"
+          f" {'fruit perc.':>12s} {'rotten perc.':>12s}")
     for rate in ODOR_RATES:
         circuits.ODOR_RATE = rate
         for name in ("fruity", "rotten"):
@@ -102,9 +103,9 @@ def main():
                       f" {pf:12.0f} {pr:12.0f}")
     circuits.ODOR_RATE = 80.0
 
-    print("\n=== B. Soglia del looming: distanza a cui decolla (blocchi), media di "
-          f"{TRIALS} prove; '-' = non decolla")
-    print(f"    {'soglia':>7s}  " + "".join(f"{lbl:>15s}" for lbl, _ in SPEEDS))
+    print("\n=== B. Looming threshold: takeoff distance (blocks), mean of "
+          f"{TRIALS} trials; '-' = no takeoff")
+    print(f"    {'threshold':>9s}" + "".join(f"{lbl:>15s}" for lbl, _ in SPEEDS))
     for lm in LOOM_MINS:
         circuits.LOOM_MIN = lm
         row = ""
@@ -115,8 +116,8 @@ def main():
                 else f"{'-':>12s} 0/{TRIALS}"
         print(f"    {lm:7.2f}  {row}")
 
-    print("\nCerchiamo: A) l'intensità più alta con GF = 0, rt > 1 e frutta/marcio ben distinti;")
-    print("           B) la soglia per cui accovacciati ci si avvicina molto più che correndo.")
+    print("\nWe're looking for: A) the highest intensity with GF = 0, rt > 1 and fruit/rotten clearly distinct;")
+    print("                   B) the threshold at which a crouching player gets much closer than a sprinting one.")
 
 
 if __name__ == "__main__":

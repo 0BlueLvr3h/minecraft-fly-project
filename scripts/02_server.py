@@ -1,51 +1,51 @@
 r"""
-Server dei cervelli (WebSocket)
--------------------------------
-Fa girare in tempo reale un cervello per ogni mosca in gioco. Tutti i cervelli
-condividono lo stesso connettoma (in memoria una volta sola) e girano in parallelo
-sui core del PC. La traduzione sensi/motori sta in circuits.py.
+Brain server (WebSocket)
+------------------------
+Runs one brain in real time for every fly in the game. All brains
+share the same connectome (held in memory only once) and run in parallel
+on the PC's cores. The senses/motors translation lives in circuits.py.
 
-Serve anche l'esploratore 3D: http://127.0.0.1:8766 (pagina in explorer/index.html).
+It also serves the 3D explorer: http://127.0.0.1:8766 (page in explorer/index.html).
 
-Nuove mosche: possono nascere finché il tempo reale medio resta sopra --spawn-rt
-(di default 1.5). Se il PC non ce la fa, il server risponde "can_spawn": false.
+New flies: they can spawn as long as the average real-time factor stays above --spawn-rt
+(1.5 by default). If the PC cannot keep up, the server answers "can_spawn": false.
 
-Protocollo (JSON):
+Protocol (JSON):
 
   plugin -> server
-    {"type": "hello", "role": "body"}                 appena collegato
-    {"type": "spawn", "fly": "3"}                     nasce la mosca 3: nuovo cervello
+    {"type": "hello", "role": "body"}                 right after connecting
+    {"type": "spawn", "fly": "3"}                     fly 3 is born: new brain
     {"type": "remove", "fly": "3"}  /  {"type": "death", "fly": "3"}
-    {"type": "senses", "flies": {"3": {...sensi...}, "4": {...}}}   ogni tick
-       sensi = {"threats": [{"angle", "dist", "speed"}], "odors": [{"odor", "angle", "dist"}],
-                "taste": {"sweet": 0..1}, "touch": {"L": 0..1, "R": 0..1}, "pain": 0..1}
-       odore di un player: {"odor": "player", "player": "<uuid>", "angle", "dist"}
-       pain = dolore di un colpo (dura circa un secondo): è la punizione per la memoria
-       angle = gradi rispetto alla direzione della mosca, positivo = a sinistra
+    {"type": "senses", "flies": {"3": {...senses...}, "4": {...}}}   every tick
+       senses = {"threats": [{"angle", "dist", "speed"}], "odors": [{"odor", "angle", "dist"}],
+                 "taste": {"sweet": 0..1}, "touch": {"L": 0..1, "R": 0..1}, "pain": 0..1}
+       a player's odor: {"odor": "player", "player": "<uuid>", "angle", "dist"}
+       pain = pain from a hit (lasts about one second): it is the punishment for the memory
+       angle = degrees relative to the fly's heading, positive = to the left
 
-  server -> plugin, ogni finestra di simulazione (50 ms di cervello)
+  server -> plugin, every simulation window (50 ms of brain time)
     {"type": "motors", "rt": 1.8, "can_spawn": true,
-     "flies": {"3": {...comandi...}, ...}}
-       comandi = {"looming", "touch", "smell", "gf", "takeoff", "escape", "perceive",
-                  "mn9", "mn9_avg", "feeding", "groom", "grooming", "walk", "dn", "spikes",
-                  "memory": {"valence", "familiar", "reward", "punish"}, "loom_gain"}
-       loom_gain = abituazione della fuga (1 = sensibile, 0.1 = abituata ai movimenti vicini)
-       memory.valence = cosa ha imparato dell'odore che sente adesso (+ buono, - cattivo)
+     "flies": {"3": {...commands...}, ...}}
+       commands = {"looming", "touch", "smell", "gf", "takeoff", "escape", "perceive",
+                   "mn9", "mn9_avg", "feeding", "groom", "grooming", "walk", "dn", "spikes",
+                   "memory": {"valence", "familiar", "reward", "punish"}, "loom_gain"}
+       loom_gain = escape habituation (1 = sensitive, 0.1 = habituated to nearby movement)
+       memory.valence = what it has learned about the odor it smells now (+ good, - bad)
 
-  Esploratore 3D (client "viewer"):
+  3D explorer ("viewer" client):
     -> {"type": "hello", "role": "viewer"}
-    -> {"type": "watch", "fly": "3"}                  quale cervello guardare
+    -> {"type": "watch", "fly": "3"}                  which brain to watch
     <- {"type": "flies", "list": ["3", "4"], "watching": "3"}
-    <- {"type": "motor", ...comandi della mosca guardata..., "rt": ...}
-    <- un messaggio BINARIO per finestra: indici (uint32) dei neuroni che hanno sparato
-    -> {"type": "stim", "idx": [..] oppure "cell_type": "LC4", "hz": 150, "ms": 600}
+    <- {"type": "motor", ...commands of the watched fly..., "rt": ...}
+    <- one BINARY message per window: indices (uint32) of the neurons that spiked
+    -> {"type": "stim", "idx": [..] or "cell_type": "LC4", "hz": 150, "ms": 600}
     <- {"type": "stim_ok", "n": 104, "label": "LC4"}
-    <- {"type": "alive"} / {"type": "death"}          la mosca guardata nasce / muore
+    <- {"type": "alive"} / {"type": "death"}          the watched fly is born / dies
 
-Uso:
-  python scripts\02_server.py                    (modello consigliato, vedi flysim.RECOMMENDED)
-  python scripts\02_server.py --spawn-rt 1.2     (permette più mosche, con meno margine)
-  python scripts\02_server.py --shiu             (modello di Shiu originale, senza correzioni)
+Usage:
+  python scripts\02_server.py                    (recommended model, see flysim.RECOMMENDED)
+  python scripts\02_server.py --spawn-rt 1.2     (allows more flies, with less headroom)
+  python scripts\02_server.py --shiu             (original Shiu model, without corrections)
 """
 
 import argparse
@@ -63,19 +63,19 @@ from circuits import FlyCircuits
 from flysim import RECOMMENDED, FlyBrain
 from memory import MushroomBody
 
-WINDOW_MS = 50.0                  # = 1 tick di Minecraft
+WINDOW_MS = 50.0                  # = 1 Minecraft tick
 EXPLORER = Path(__file__).resolve().parent.parent / "explorer"
 NO_SENSES = {"threats": [], "odors": [], "taste": {}, "touch": {}, "pain": 0.0}
 
 
 class Fly:
-    """Un cervello con i suoi circuiti, i suoi sensi e i suoi stimoli dall'esploratore."""
+    """A brain with its circuits, its senses and its stimuli from the explorer."""
 
     def __init__(self, fid, brain, circ, mb, owner):
         self.id, self.brain, self.circ, self.mb, self.owner = fid, brain, circ, mb, owner
         self.reward = self.punish = 0.0
         self.senses = dict(NO_SENSES)
-        self.extra = []                   # stimoli dall'esploratore: [idx, hz, fino_a_ms]
+        self.extra = []                   # stimuli from the explorer: [idx, hz, until_ms]
         self.out = None
         self.delta = None
         self.loom = {"L": 0.0, "R": 0.0}
@@ -86,8 +86,8 @@ class Fly:
         self.loom = self.circ.looming(s.get("threats", []))
         self.smell = self.circ.smell(s.get("odors", []))
         self.circ.apply(self.loom, self.smell, s.get("taste", {}), s.get("touch", {}))
-        # rinforzo per la memoria: lo zucchero sotto le zampe è la ricompensa, un colpo la
-        # punizione. Nel modello queste vie non arrivano ai dopaminergici: li accendiamo noi.
+        # reinforcement for the memory: sugar under the legs is the reward, a hit is the
+        # punishment. In the model these pathways do not reach the dopaminergic neurons: we drive them ourselves.
         self.reward = min(1.0, float(s.get("taste", {}).get("sweet", 0.0)))
         self.punish = min(1.0, float(s.get("pain", 0.0)))
         for idx, hz in self.mb.reinforcement(self.reward, self.punish):
@@ -97,7 +97,7 @@ class Fly:
         for idx, hz, _ in self.extra:
             self.brain.add_stimulus(idx, hz)
 
-    def step(self):                       # gira in un thread: Numba lascia lavorare gli altri core
+    def step(self):                       # runs in a thread: Numba releases the GIL so the other cores keep working
         before = self.brain.counts.copy()
         self.brain.run(WINDOW_MS)
         self.delta = self.brain.counts - before
@@ -127,17 +127,17 @@ class Server:
         self.spawn_rt, self.max_flies = spawn_rt, max_flies
         self.flies = {}                   # id -> Fly
         self.clients = set()
-        self.viewers = {}                 # ws -> id della mosca guardata (o None)
+        self.viewers = {}                 # ws -> id of the watched fly (or None)
         self.rt_avg = 99.0
         self.seed = 1
         self.last_spawn = 0.0
 
-    # ------------------------------------------------------------- capacità
+    # ------------------------------------------------------------- capacity
     def spawn_block(self):
-        """Perché non può nascere un'altra mosca: None (può), "wait", "max" o "rt"."""
+        """Why another fly cannot spawn: None (it can), "wait", "max" or "rt"."""
         if not self.flies:
             return None
-        if time.monotonic() - self.last_spawn <= 3.0:            # aspetta che l'ultima pesi sulla media
+        if time.monotonic() - self.last_spawn <= 3.0:            # wait until the last one weighs on the average
             return "wait"
         if len(self.flies) >= self.max_flies:
             return "max"
@@ -148,7 +148,7 @@ class Server:
     def can_spawn(self):
         return self.spawn_block() is None
 
-    # ------------------------------------------------------------- mosche
+    # ------------------------------------------------------------- flies
     async def spawn(self, fid, owner):
         if fid in self.flies:
             return
@@ -157,7 +157,7 @@ class Server:
         self.last_spawn = time.monotonic()
         self.flies[fid] = Fly(fid, brain, self.circ_template.sibling(brain),
                               self.mb_template.sibling(brain), owner)
-        print(f"  + mosca {fid} ({len(self.flies)} in tutto, tempo reale medio {self.rt_avg:.2f})")
+        print(f"  + fly {fid} ({len(self.flies)} in total, average real-time factor {self.rt_avg:.2f})")
         for ws, watching in list(self.viewers.items()):
             if watching is None or watching not in self.flies:
                 self.viewers[ws] = fid
@@ -168,13 +168,13 @@ class Server:
         fly = self.flies.pop(fid, None)
         if fly is None:
             return
-        print(f"  - mosca {fid} {'morta' if died else 'rimossa'} ({len(self.flies)} in tutto)")
+        print(f"  - fly {fid} {'died' if died else 'removed'} ({len(self.flies)} in total)")
         for ws, watching in list(self.viewers.items()):
             if watching == fid:
                 await self.send(ws, {"type": "death"})
         await self.tell_flies()
 
-    # ------------------------------------------------------------- invii
+    # ------------------------------------------------------------- sending
     async def send(self, ws, msg):
         try:
             await ws.send(msg if isinstance(msg, (bytes, str)) else json.dumps(msg))
@@ -188,10 +188,10 @@ class Server:
             if only is None or ws is only:
                 await self.send(ws, {"type": "flies", "list": ids, "watching": watching})
 
-    # ------------------------------------------------------------- connessioni
+    # ------------------------------------------------------------- connections
     async def handler(self, ws):
         self.clients.add(ws)
-        print(f"+ client collegato ({len(self.clients)} totali)")
+        print(f"+ client connected ({len(self.clients)} total)")
         try:
             async for raw in ws:
                 try:
@@ -211,10 +211,10 @@ class Server:
                 elif kind == "hello" and msg.get("role") == "viewer":
                     first = next(iter(self.flies), None)
                     self.viewers[ws] = first
-                    print("  (è un esploratore 3D)")
+                    print("  (it is a 3D explorer)")
                     await self.tell_flies(only=ws)
                 elif kind == "hello" and msg.get("role") == "body":
-                    print("  (è il plugin di Minecraft)")
+                    print("  (it is the Minecraft plugin)")
                 elif kind == "watch" and ws in self.viewers:
                     self.viewers[ws] = fid if fid in self.flies else None
                     await self.tell_flies(only=ws)
@@ -226,8 +226,8 @@ class Server:
             self.clients.discard(ws)
             self.viewers.pop(ws, None)
             for fid in [k for k, f in self.flies.items() if f.owner is ws]:
-                await self.drop(fid, died=False)        # il plugin se n'è andato: niente mosche orfane
-            print(f"- client scollegato ({len(self.clients)} totali)")
+                await self.drop(fid, died=False)        # the plugin is gone: no orphan flies
+            print(f"- client disconnected ({len(self.clients)} total)")
 
     async def stim(self, ws, msg):
         fly = self.flies.get(self.viewers.get(ws))
@@ -237,9 +237,9 @@ class Server:
         else:
             idx = np.asarray(msg.get("idx", []), np.int64)
             idx = idx[(idx >= 0) & (idx < self.template.N)]
-            label = str(msg.get("label") or "neuroni scelti")
+            label = str(msg.get("label") or "selected neurons")
         if fly is None:
-            await self.send(ws, {"type": "stim_ok", "n": 0, "label": "nessuna mosca viva"})
+            await self.send(ws, {"type": "stim_ok", "n": 0, "label": "no live fly"})
             return
         hz = float(min(max(msg.get("hz", 150.0), 0.0), 500.0))
         ms = float(min(max(msg.get("ms", 600.0), 50.0), 5000.0))
@@ -247,7 +247,7 @@ class Server:
             fly.extra.append([idx, hz, fly.brain.t * fly.brain.dt + ms])
         await self.send(ws, {"type": "stim_ok", "n": int(len(idx)), "label": label})
 
-    # ------------------------------------------------------------- ciclo
+    # ------------------------------------------------------------- loop
     async def sim_loop(self):
         win = WINDOW_MS / 1000
         while True:
@@ -263,7 +263,7 @@ class Server:
             await asyncio.gather(*(asyncio.to_thread(f.step) for f in flies))
             elapsed = time.perf_counter() - t0
             rt = win / max(elapsed, 1e-6)
-            self.rt_avg += (min(rt, 20.0) - self.rt_avg) * 0.05      # media di qualche secondo
+            self.rt_avg += (min(rt, 20.0) - self.rt_avg) * 0.05      # average over a few seconds
             if self.rt_avg > 20:
                 self.rt_avg = 20.0
 
@@ -289,13 +289,13 @@ class Server:
 
 
 def explorer_data(brain, circ, mb, ws_port):
-    """I dati statici per l'esploratore: posizioni, classi, tipi, circuiti."""
+    """Static data for the explorer: positions, classes, types, circuits."""
     n = brain.neurons
     xyz = n[["x", "y", "z"]].to_numpy(np.float64)
     ok = np.isfinite(xyz).all(axis=1)
     center = np.nanmedian(xyz[ok], axis=0)
     xyz = np.where(ok[:, None], xyz - center, 0.0)
-    xyz[:, 1] *= -1                                # in FlyWire la y cresce verso il basso
+    xyz[:, 1] *= -1                                # in FlyWire y grows downwards
     pos = xyz.astype("<f4").tobytes()
 
     def codes(col, missing="?"):
@@ -306,7 +306,7 @@ def explorer_data(brain, circ, mb, ws_port):
         return list(cat.cat.categories), cat.cat.codes.to_numpy().astype(np.int64)
 
     classes, cls = codes("super_class")
-    cls = np.where(ok, cls, 255).astype("u1")      # 255 = senza posizione: non si disegna
+    cls = np.where(ok, cls, 255).astype("u1")      # 255 = no position: not drawn
     types, typ = codes("cell_type")
     nts, nt = codes("top_nt")
     sides, side = codes("side")
@@ -315,25 +315,25 @@ def explorer_data(brain, circ, mb, ws_port):
         return sorted(set(np.concatenate([np.asarray(a, np.int64) for a in arrays]).tolist()))
 
     groups = [
-        {"name": "Occhi: LC4 e LPLC2", "role": "senso", "idx": grp(circ.eye["L"], circ.eye["R"])},
-        {"name": "Antenne: frutta", "role": "senso",
+        {"name": "Eyes: LC4 and LPLC2", "role": "sense", "idx": grp(circ.eye["L"], circ.eye["R"])},
+        {"name": "Antennae: fruit", "role": "sense",
          "idx": grp(circ.odor["fruity"]["L"], circ.odor["fruity"]["R"])},
-        {"name": "Antenne: marcio", "role": "senso",
+        {"name": "Antennae: rotten", "role": "sense",
          "idx": grp(circ.odor["rotten"]["L"], circ.odor["rotten"]["R"])},
-        {"name": "Zampe: zucchero", "role": "senso", "idx": grp(circ.sugar)},
-        {"name": "Testa: setole e antenne", "role": "senso", "idx": grp(circ.touch["L"], circ.touch["R"])},
-        {"name": "Antenne: odori dei player", "role": "senso", "idx": grp(circ.players.all_idx())},
-        {"name": "Corpo fungiforme: cellule di Kenyon", "role": "cervello", "idx": grp(mb.kc)},
-        {"name": "Dopamina: ricompensa (PAM)", "role": "cervello", "idx": grp(mb.reward_idx)},
-        {"name": "Dopamina: punizione (PPL1)", "role": "cervello", "idx": grp(mb.punish_idx)},
-        {"name": "Uscite del corpo fungiforme (MBON)", "role": "cervello", "idx": grp(mb.mbon)},
-        {"name": "Percezione della frutta", "role": "cervello", "idx": grp(circ.perceive_idx["fruity"])},
-        {"name": "Percezione del marcio", "role": "cervello", "idx": grp(circ.perceive_idx["rotten"])},
-        {"name": "Giant Fiber", "role": "azione", "idx": grp(circ.gf["L"], circ.gf["R"])},
-        {"name": "Discendenti di fuga", "role": "azione",
+        {"name": "Legs: sugar", "role": "sense", "idx": grp(circ.sugar)},
+        {"name": "Head: bristles and antennae", "role": "sense", "idx": grp(circ.touch["L"], circ.touch["R"])},
+        {"name": "Antennae: player odors", "role": "sense", "idx": grp(circ.players.all_idx())},
+        {"name": "Mushroom body: Kenyon cells", "role": "brain", "idx": grp(mb.kc)},
+        {"name": "Dopamine: reward (PAM)", "role": "brain", "idx": grp(mb.reward_idx)},
+        {"name": "Dopamine: punishment (PPL1)", "role": "brain", "idx": grp(mb.punish_idx)},
+        {"name": "Mushroom body outputs (MBON)", "role": "brain", "idx": grp(mb.mbon)},
+        {"name": "Fruit perception", "role": "brain", "idx": grp(circ.perceive_idx["fruity"])},
+        {"name": "Rotten perception", "role": "brain", "idx": grp(circ.perceive_idx["rotten"])},
+        {"name": "Giant Fiber", "role": "action", "idx": grp(circ.gf["L"], circ.gf["R"])},
+        {"name": "Escape descending neurons", "role": "action",
          "idx": grp(circ.escape["L"], circ.escape["R"])},
-        {"name": "MN9: proboscide", "role": "azione", "idx": grp(circ.mn9)},
-        {"name": "Pulizia: discendenti", "role": "azione", "idx": grp(circ.groom)},
+        {"name": "MN9: proboscis", "role": "action", "idx": grp(circ.mn9)},
+        {"name": "Grooming: descending neurons", "role": "action", "idx": grp(circ.groom)},
     ]
     groups = [g for g in groups if g["idx"]]
     meta = {"n": int(len(n)), "ws_port": ws_port, "classes": classes, "types": types,
@@ -355,7 +355,7 @@ def start_http(host, port, blobs):
             if path in ("/", "/index.html"):
                 page = EXPLORER / "index.html"
                 if not page.exists():
-                    self.send_error(404, "Manca explorer/index.html nella cartella del progetto")
+                    self.send_error(404, "explorer/index.html is missing from the project folder")
                     return
                 body, ctype = page.read_bytes(), "text/html; charset=utf-8"
             elif path in blobs:
@@ -370,7 +370,7 @@ def start_http(host, port, blobs):
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, *args):          # niente log per ogni richiesta
+        def log_message(self, *args):          # no log line for every request
             pass
 
     httpd = ThreadingHTTPServer((host, port), Handler)
@@ -382,19 +382,19 @@ async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
-    ap.add_argument("--http-port", type=int, default=8766, help="porta dell'esploratore 3D")
-    ap.add_argument("--dt", type=float, default=0.2, help="passo di simulazione in ms")
+    ap.add_argument("--http-port", type=int, default=8766, help="3D explorer port")
+    ap.add_argument("--dt", type=float, default=0.2, help="simulation step in ms")
     ap.add_argument("--spawn-rt", type=float, default=1.5,
-                    help="nuove mosche solo se il tempo reale medio è almeno questo")
-    ap.add_argument("--max-flies", type=int, default=32, help="limite assoluto di mosche")
+                    help="new flies only if the average real-time factor is at least this")
+    ap.add_argument("--max-flies", type=int, default=32, help="absolute fly limit")
     ap.add_argument("--noise", type=float, default=0.0,
-                    help="attività spontanea sui neuroni sensoriali, in Hz (0 = spenta)")
+                    help="spontaneous activity on the sensory neurons, in Hz (0 = off)")
     ap.add_argument("--shiu", action="store_true",
-                    help="modello di Shiu originale, senza le correzioni del connettoma")
+                    help="original Shiu model, without the connectome corrections")
     ap.add_argument("--adapt-b", type=float, default=None,
-                    help="cambia l'adattamento (mV per spike) rispetto al modello consigliato")
+                    help="changes the adaptation (mV per spike) relative to the recommended model")
     ap.add_argument("--swap-sides", action="store_true",
-                    help="inverte sinistra/destra se la mosca reagisce dalla parte sbagliata")
+                    help="swaps left/right if the fly reacts on the wrong side")
     args = ap.parse_args()
 
     t0 = time.perf_counter()
@@ -404,35 +404,35 @@ async def main():
     template = FlyBrain(dt=args.dt, params=params)
     circ = FlyCircuits(template, args.swap_sides)
     circ.set_noise(args.noise)
-    print(f"Connettoma caricato in {time.perf_counter() - t0:.1f} s "
-          f"(motore {template.engine}, dt = {args.dt} ms, rumore = {args.noise} Hz, "
-          f"modello {'Shiu originale' if args.shiu else 'consigliato'})")
-    print(f"   correzioni: interneuroni {template.ln_fixed}, KC->KC tagliate {template.kc_cut:,}, "
-          f"neuromodulatori lenti {template.mod_silenced}, adattamento {template.p['adapt_b']} mV")
+    print(f"Connectome loaded in {time.perf_counter() - t0:.1f} s "
+          f"(engine {template.engine}, dt = {args.dt} ms, noise = {args.noise} Hz, "
+          f"model {'original Shiu' if args.shiu else 'recommended'})")
+    print(f"   corrections: interneurons {template.ln_fixed}, KC->KC cut {template.kc_cut:,}, "
+          f"slow neuromodulators {template.mod_silenced}, adaptation {template.p['adapt_b']} mV")
     lines, warnings = circ.report()
     for line in lines:
         print("  ", line)
     for w in warnings:
-        print("   ATTENZIONE:", w)
+        print("   WARNING:", w)
 
     t0 = time.perf_counter()
     full = circ.calibrate_perception()
-    print("   Scala percezione odori: "
+    print("   Odor perception scale: "
           + ", ".join(f"{k} = {v:.0f} Hz" for k, v in full.items())
           + f"  ({time.perf_counter() - t0:.1f} s)")
-    print(f"   Nuove mosche finché il tempo reale medio resta sopra {args.spawn_rt}")
+    print(f"   New flies as long as the average real-time factor stays above {args.spawn_rt}")
 
     t0 = time.perf_counter()
     mb = MushroomBody(template)
-    print(f"   Memoria (corpo fungiforme): {len(mb.pos):,} sinapsi KC->MBON che imparano, "
-          f"{(mb.comp == 1).sum()} MBON di ricompensa e {(mb.comp == -1).sum()} di punizione letti "
+    print(f"   Memory (mushroom body): {len(mb.pos):,} learning KC->MBON synapses, "
+          f"{(mb.comp == 1).sum()} reward and {(mb.comp == -1).sum()} punishment MBONs read "
           f"({time.perf_counter() - t0:.1f} s)")
 
     server = Server(template, circ, mb, args.spawn_rt, args.max_flies)
     start_http(args.host, args.http_port, explorer_data(template, circ, mb, args.port))
     async with serve(server.handler, args.host, args.port, max_size=2**22):
-        print(f"In ascolto su ws://{args.host}:{args.port}  (Ctrl+C per fermare)")
-        print(f"Esploratore 3D: http://{args.host}:{args.http_port}")
+        print(f"Listening on ws://{args.host}:{args.port}  (Ctrl+C to stop)")
+        print(f"3D explorer: http://{args.host}:{args.http_port}")
         await server.sim_loop()
 
 
@@ -440,4 +440,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nFermato.")
+        print("\nStopped.")

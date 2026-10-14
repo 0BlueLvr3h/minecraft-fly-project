@@ -1,14 +1,14 @@
 r"""
-Benchmark: quanto è veloce il cervello nelle situazioni di gioco
------------------------------------------------------------------
-Misura il tempo reale (rt, sopra 1 = la mosca reagisce in tempo) in quattro
-situazioni, per diversi passi di simulazione (dt). Così scegliamo il dt più
-preciso che regge il tempo reale anche con la mela in mano.
+Benchmark: how fast the brain runs in game situations
+-----------------------------------------------------
+Measures the real-time factor (rt; above 1 = the fly reacts in time) in four
+situations, for several simulation time steps (dt). This lets us pick the most
+accurate dt that still keeps up with real time, even with an apple in hand.
 
-Controlla anche che con un dt più grosso la fuga funzioni ancora (Giant Fiber).
+It also checks that the escape still works with a larger dt (Giant Fiber).
 
-Uso:
-  pip install numba            (una volta sola: motore veloce)
+Usage:
+  pip install numba            (only once: fast engine)
   python scripts\06_benchmark.py
   python scripts\06_benchmark.py --dt 0.2 0.3 0.5
 """
@@ -49,30 +49,30 @@ def measure(brain, circ, loom, smell, seconds):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dt", type=float, nargs="+", default=[0.2, 0.3, 0.5])
-    ap.add_argument("--sec", type=float, default=2.0, help="secondi simulati per situazione")
+    ap.add_argument("--sec", type=float, default=2.0, help="simulated seconds per situation")
     args = ap.parse_args()
 
-    print(f"Motore: {'Numba' if flysim.HAVE_NUMBA else 'NumPy (installa numba per il motore veloce)'}")
+    print(f"Engine: {'Numba' if flysim.HAVE_NUMBA else 'NumPy (install numba for the fast engine)'}")
     cases = [
-        ("a riposo",                ({"L": 0.0, "R": 0.0}, {})),
-        ("player che corre",        ({"L": 0.3, "R": 0.0}, {})),
-        ("mela vicina",             (dict(NONE), {"fruity": 1.0})),
-        ("mela a qualche blocco",   (dict(NONE), {"fruity": 0.3})),
+        ("at rest",                 ({"L": 0.0, "R": 0.0}, {})),
+        ("player running",          ({"L": 0.3, "R": 0.0}, {})),
+        ("apple nearby",            (dict(NONE), {"fruity": 1.0})),
+        ("apple a few blocks away", (dict(NONE), {"fruity": 0.3})),
     ]
     for dt in args.dt:
         brain = FlyBrain(dt=dt, seed=0)
         circ = FlyCircuits(brain)
         if flysim.HAVE_NUMBA:
-            brain.run(1)                                   # compila (solo la prima volta è lento)
+            brain.run(1)                                   # compile (slow only the first time)
         print(f"\n=== dt = {dt} ms")
-        print(f"    {'situazione':24s} {'rt':>6s} {'spike/s':>10s} {'Giant Fiber':>12s}")
+        print(f"    {'situation':24s} {'rt':>6s} {'spikes/s':>10s} {'Giant Fiber':>12s}")
         for name, (loom, odors) in cases:
             loom, smell = scenario(circ, loom, odors)
             rt, sps, gf = measure(brain, circ, loom, smell, args.sec)
             print(f"    {name:24s} {rt:6.2f} {sps:10,d} {gf:12d}")
 
-    print("\nScegliamo il dt più piccolo con rt > 1 in tutte le righe,"
-          "\npurché il Giant Fiber spari ancora con il player che corre.")
+    print("\nWe pick the smallest dt with rt > 1 in every row,"
+          "\nas long as the Giant Fiber still fires with the running player.")
 
 
 if __name__ == "__main__":

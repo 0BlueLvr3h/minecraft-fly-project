@@ -1,24 +1,24 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cervello della mosca</title>
+<title>Fly brain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --slide: #161a3a;          /* fondo: vetrino al microscopio a fluorescenza */
+    --slide: #161a3a;          /* background: fluorescence microscope slide */
     --glass: rgba(28, 33, 72, 0.78);
     --line: rgba(160, 172, 230, 0.18);
     --ink: #e6e9f7;
     --ink-soft: #9aa3cc;
-    --flash: #fff1c2;          /* il lampo di uno spike */
-    --mark: #f6c453;           /* neuroni evidenziati */
-    --senso: #5fb3a6;
-    --cervello: #8f9be6;
-    --azione: #e07a8f;
+    --flash: #fff1c2;          /* the flash of a spike */
+    --mark: #f6c453;           /* highlighted neurons */
+    --sense: #5fb3a6;
+    --brain: #8f9be6;
+    --action: #e07a8f;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--slide); color: var(--ink);
@@ -38,9 +38,9 @@
   h2 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: var(--ink-soft); }
   .status { font-size: 13px; color: var(--ink-soft); }
   .status.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--senso); margin-right: 6px; }
+    background: var(--sense); margin-right: 6px; }
   .status.down::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--azione); margin-right: 6px; }
+    background: var(--action); margin-right: 6px; }
 
   #live { left: 16px; top: 16px; width: 270px; }
   .pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
@@ -50,8 +50,8 @@
     font-size: 13px; margin: 3px 0; }
   .bar { height: 6px; background: rgba(160, 172, 230, 0.14); border-radius: 3px; overflow: hidden; }
   .bar > i { display: block; height: 100%; width: 0; border-radius: 3px; transition: width 120ms linear; }
-  .senso i { background: var(--senso); } .cervello i { background: var(--cervello); }
-  .azione i { background: var(--azione); }
+  .sense i { background: var(--sense); } .brain i { background: var(--brain); }
+  .action i { background: var(--action); }
   .val { text-align: right; color: var(--ink-soft); }
   .big { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--ink-soft); }
   .big b { display: block; font-size: 18px; font-weight: 500; color: var(--ink); }
@@ -100,72 +100,72 @@
 </style>
 </head>
 <body>
-<div id="loading">Carico il connettoma…</div>
+<div id="loading">Loading the connectome…</div>
 
 <section id="live" class="panel" aria-live="polite">
-  <h1>Cervello della mosca</h1>
-  <div id="status" class="status down">In attesa del server del cervello</div>
-  <label class="pick">Cervello di
-    <select id="fly" aria-label="Quale mosca guardare"><option value="">nessuna mosca viva</option></select>
+  <h1>Fly brain</h1>
+  <div id="status" class="status down">Waiting for the brain server</div>
+  <label class="pick">Brain of
+    <select id="fly" aria-label="Which fly to watch"><option value="">no living fly</option></select>
   </label>
 
-  <h2>Cosa sente</h2>
-  <div class="meter senso"><span>Occhio sinistro</span><div class="bar"><i id="m-loomL"></i></div><span class="val" id="v-loomL">0</span></div>
-  <div class="meter senso"><span>Occhio destro</span><div class="bar"><i id="m-loomR"></i></div><span class="val" id="v-loomR">0</span></div>
-  <div class="meter cervello"><span>Frutta</span><div class="bar"><i id="m-fruity"></i></div><span class="val" id="v-fruity">0</span></div>
-  <div class="meter cervello"><span>Marcio</span><div class="bar"><i id="m-rotten"></i></div><span class="val" id="v-rotten">0</span></div>
-  <div class="meter senso"><span>Colpo</span><div class="bar"><i id="m-touch"></i></div><span class="val" id="v-touch">0</span></div>
-  <div class="meter senso"><span>Un player</span><div class="bar"><i id="m-player"></i></div><span class="val" id="v-player">0</span></div>
+  <h2>What it senses</h2>
+  <div class="meter sense"><span>Left eye</span><div class="bar"><i id="m-loomL"></i></div><span class="val" id="v-loomL">0</span></div>
+  <div class="meter sense"><span>Right eye</span><div class="bar"><i id="m-loomR"></i></div><span class="val" id="v-loomR">0</span></div>
+  <div class="meter brain"><span>Fruit</span><div class="bar"><i id="m-fruity"></i></div><span class="val" id="v-fruity">0</span></div>
+  <div class="meter brain"><span>Rotten</span><div class="bar"><i id="m-rotten"></i></div><span class="val" id="v-rotten">0</span></div>
+  <div class="meter sense"><span>Hit</span><div class="bar"><i id="m-touch"></i></div><span class="val" id="v-touch">0</span></div>
+  <div class="meter sense"><span>A player</span><div class="bar"><i id="m-player"></i></div><span class="val" id="v-player">0</span></div>
 
-  <h2>Cosa ricorda</h2>
-  <div class="meter cervello"><span>Buono</span><div class="bar"><i id="m-good"></i></div><span class="val" id="v-good">0</span></div>
-  <div class="meter azione"><span>Cattivo</span><div class="bar"><i id="m-bad"></i></div><span class="val" id="v-bad">0</span></div>
+  <h2>What it remembers</h2>
+  <div class="meter brain"><span>Good</span><div class="bar"><i id="m-good"></i></div><span class="val" id="v-good">0</span></div>
+  <div class="meter action"><span>Bad</span><div class="bar"><i id="m-bad"></i></div><span class="val" id="v-bad">0</span></div>
 
-  <h2>Cosa fa</h2>
-  <div class="meter azione"><span>Giant Fiber</span><div class="bar"><i id="m-gf"></i></div><span class="val" id="v-gf">0</span></div>
-  <div class="meter azione"><span>Proboscide</span><div class="bar"><i id="m-mn9"></i></div><span class="val" id="v-mn9">0</span></div>
-  <div class="meter azione"><span>Pulizia</span><div class="bar"><i id="m-groom"></i></div><span class="val" id="v-groom">0</span></div>
+  <h2>What it does</h2>
+  <div class="meter action"><span>Giant Fiber</span><div class="bar"><i id="m-gf"></i></div><span class="val" id="v-gf">0</span></div>
+  <div class="meter action"><span>Proboscis</span><div class="bar"><i id="m-mn9"></i></div><span class="val" id="v-mn9">0</span></div>
+  <div class="meter action"><span>Grooming</span><div class="bar"><i id="m-groom"></i></div><span class="val" id="v-groom">0</span></div>
 
   <div class="big">
-    <div><b id="v-spikes">0</b>spike al secondo</div>
-    <div><b id="v-rt">–</b>tempo reale</div>
+    <div><b id="v-spikes">0</b>spikes per second</div>
+    <div><b id="v-rt">–</b>real time</div>
   </div>
   <div id="flash"></div>
 </section>
 
 <aside id="side" class="panel">
   <div class="search">
-    <input id="q" type="search" placeholder="Cerca un tipo di neurone, es. LC4" autocomplete="off"
-           aria-label="Cerca un tipo di neurone">
+    <input id="q" type="search" placeholder="Search a neuron type, e.g. LC4" autocomplete="off"
+           aria-label="Search a neuron type">
     <div id="sugg" role="listbox"></div>
   </div>
   <div id="info">
-  <h2>Neurone selezionato</h2>
+  <h2>Selected neuron</h2>
   <div id="i-type" class="itype">–</div>
   <dl>
-    <dt>Classe</dt><dd id="i-class"></dd>
-    <dt>Lato</dt><dd id="i-side"></dd>
-    <dt>Trasmettitore</dt><dd id="i-nt"></dd>
-    <dt>Neuroni del tipo</dt><dd id="i-count"></dd>
-    <dt>Indice</dt><dd id="i-idx"></dd>
+    <dt>Class</dt><dd id="i-class"></dd>
+    <dt>Side</dt><dd id="i-side"></dd>
+    <dt>Transmitter</dt><dd id="i-nt"></dd>
+    <dt>Neurons of type</dt><dd id="i-count"></dd>
+    <dt>Index</dt><dd id="i-idx"></dd>
   </dl>
   <div class="actions">
-    <button id="b-one">Stimola questo neurone</button>
-    <button id="b-type">Stimola tutto il tipo</button>
-    <button id="b-close">Chiudi</button>
+    <button id="b-one">Stimulate this neuron</button>
+    <button id="b-type">Stimulate the whole type</button>
+    <button id="b-close">Close</button>
   </div>
 </div>
-  <h2>Circuiti della mosca in gioco</h2>
+  <h2>Circuits of the in-game fly</h2>
   <div id="circuits"></div>
-  <p class="hint">Clicca un neurone per vederne il tipo. Stimolare un circuito
-    fa reagire anche la mosca in Minecraft: prova con il Giant Fiber.</p>
+  <p class="hint">Click a neuron to see its type. Stimulating a circuit
+    also makes the fly react in Minecraft: try the Giant Fiber.</p>
 </aside>
 
 <section id="layers" class="panel">
-  <h2 style="margin-top:0">Classi di neuroni</h2>
+  <h2 style="margin-top:0">Neuron classes</h2>
   <div id="classlist"></div>
-  <div class="row"><span>Punti</span><input id="size" type="range" min="0.4" max="3" step="0.1" value="1"
-       aria-label="Dimensione dei punti"></div>
+  <div class="row"><span>Points</span><input id="size" type="range" min="0.4" max="3" step="0.1" value="1"
+       aria-label="Point size"></div>
 </section>
 
 
@@ -180,24 +180,24 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-// Colori a riposo per classe (tenui: 139.000 punti sommati devono restare leggibili)
+// Resting colors per class (faint: 139,000 additively blended points must stay readable)
 const CLASS_COLORS = {
   central: "#6f86c9", optic: "#4e6e8e", sensory: "#5fb3a6", descending: "#c58fd6",
   ascending: "#d6a06f", motor: "#e07a8f", visual_projection: "#7fa3d9",
   visual_centrifugal: "#8f8fd9", endocrine: "#d9c46f",
 };
 const CLASS_NAMES = {
-  central: "Cervello centrale", optic: "Lobi ottici", sensory: "Sensoriali",
-  descending: "Discendenti (verso il corpo)", ascending: "Ascendenti (dal corpo)", motor: "Motoneuroni",
-  visual_projection: "Proiezioni visive", visual_centrifugal: "Centrifughi visivi", endocrine: "Endocrini",
+  central: "Central brain", optic: "Optic lobes", sensory: "Sensory",
+  descending: "Descending (to the body)", ascending: "Ascending (from the body)", motor: "Motor neurons",
+  visual_projection: "Visual projection", visual_centrifugal: "Visual centrifugal", endocrine: "Endocrine",
 };
-const ROLE_COLOR = { senso: "var(--senso)", cervello: "var(--cervello)", azione: "var(--azione)" };
+const ROLE_COLOR = { sense: "var(--sense)", brain: "var(--brain)", action: "var(--action)" };
 const STIM = { hz: 150, ms: 600 };
 
 const $ = (id) => document.getElementById(id);
 const nowS = () => performance.now() / 1000;
 
-// ---------------------------------------------------------------- dati
+// ---------------------------------------------------------------- data
 const [meta, pos, cls, typ, nt, side] = await Promise.all([
   fetch("/meta.json").then(r => r.json()),
   fetch("/pos.bin").then(r => r.arrayBuffer()).then(b => new Float32Array(b)),
@@ -206,14 +206,14 @@ const [meta, pos, cls, typ, nt, side] = await Promise.all([
   fetch("/nt.bin").then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
   fetch("/side.bin").then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
 ]).catch(err => {
-  $("loading").textContent = "Non riesco a caricare il connettoma: il server del cervello è acceso?";
+  $("loading").textContent = "Cannot load the connectome: is the brain server running?";
   throw err;
 });
 const N = meta.n;
 const typeCount = new Uint32Array(meta.types.length);
 for (let i = 0; i < N; i++) typeCount[typ[i]]++;
 
-// ---------------------------------------------------------------- scena
+// ---------------------------------------------------------------- scene
 const renderer = new THREE.WebGLRenderer({ antialias: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -265,7 +265,7 @@ const material = new THREE.ShaderMaterial({
       int k = int(aClass + 0.5);
       if (k > 31 || uVis[k] < 0.5) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
       float glow = exp(-(uTime - aLast) / 0.15);
-      vec3 base = uPalette[k] * uBase * mix(1.0, 0.3, uAnyHi);  // con un circuito evidenziato, il resto si spegne
+      vec3 base = uPalette[k] * uBase * mix(1.0, 0.3, uAnyHi);  // with a circuit highlighted, the rest dims
       base = mix(base, uMark * 0.8, aHi);
       vColor = mix(base, uFlash * 1.6, glow) * uLife;
       vAlpha = 1.0;
@@ -287,7 +287,7 @@ scene.add(points);
 
 const R = geom.boundingSphere.radius;
 camera.position.set(0, 0, R * 2.2);
-// un punto a riposo misura circa 2 pixel nella vista iniziale; più neuroni ci sono, più è tenue
+// a resting point is about 2 pixels in the initial view; the more neurons, the fainter it is
 material.uniforms.uWorld.value = 2.0 * (R * 2.2) / (innerHeight * 0.5);
 material.uniforms.uBase.value = 0.35 * Math.min(1, Math.max(0.3, Math.sqrt(20000 / N)));
 camera.far = R * 20;
@@ -305,13 +305,13 @@ let lifeTarget = 1;
 renderer.setAnimationLoop(() => {
   material.uniforms.uTime.value = nowS();
   const life = material.uniforms.uLife;
-  life.value += (lifeTarget - life.value) * (lifeTarget < life.value ? 0.008 : 0.05);  // si spegne piano
+  life.value += (lifeTarget - life.value) * (lifeTarget < life.value ? 0.008 : 0.05);  // fades out slowly
   controls.update();
   renderer.render(scene, camera);
 });
 $("loading").remove();
 
-// ---------------------------------------------------------------- classi
+// ---------------------------------------------------------------- classes
 const classCount = new Uint32Array(meta.classes.length);
 for (let i = 0; i < N; i++) if (cls[i] < classCount.length) classCount[cls[i]]++;
 const order = meta.classes.map((c, k) => k).sort((a, b) => classCount[b] - classCount[a]);
@@ -320,13 +320,13 @@ for (const k of order) {
   if (!classCount[k] || c === "?") continue;
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" checked><i class="swatch" style="background:${CLASS_COLORS[c] || "#8a8fa8"}"></i>
-    ${CLASS_NAMES[c] || c.replaceAll("_", " ")}<span>${classCount[k].toLocaleString("it")}</span>`;
+    ${CLASS_NAMES[c] || c.replaceAll("_", " ")}<span>${classCount[k].toLocaleString("en")}</span>`;
   label.querySelector("input").addEventListener("change", (e) => { vis[k] = e.target.checked ? 1 : 0; });
   $("classlist").append(label);
 }
 $("size").addEventListener("input", (e) => { material.uniforms.uSize.value = +e.target.value; });
 
-// ---------------------------------------------------------------- evidenziare
+// ---------------------------------------------------------------- highlighting
 let hiKey = null;
 function highlight(key, idx) {
   aHi.fill(0);
@@ -346,20 +346,20 @@ function indicesOfType(t) {
   return out;
 }
 
-// ---------------------------------------------------------------- circuiti
+// ---------------------------------------------------------------- circuits
 for (const g of meta.groups) {
   const row = document.createElement("div");
   row.className = "circuit";
   row.innerHTML = `<i class="dot" style="background:${ROLE_COLOR[g.role]}"></i>
     <span>${g.name} <small>${g.idx.length}</small></span>
-    <button data-hi="g:${g.name}">Mostra</button><button>Stimola</button>`;
+    <button data-hi="g:${g.name}">Show</button><button>Stimulate</button>`;
   const [show, stim] = row.querySelectorAll("button");
   show.addEventListener("click", () => highlight(`g:${g.name}`, g.idx));
   stim.addEventListener("click", () => send({ type: "stim", idx: g.idx, label: g.name, ...STIM }));
   $("circuits").append(row);
 }
 
-// ---------------------------------------------------------------- ricerca
+// ---------------------------------------------------------------- search
 const typeNames = meta.types.map((t, k) => ({ t, k, low: t.toLowerCase() }))
   .filter(o => o.t !== "?" && typeCount[o.k] > 0);
 let suggestions = [], selSugg = -1;
@@ -400,18 +400,18 @@ $("q").addEventListener("keydown", (e) => {
 });
 $("q").addEventListener("blur", () => { suggestions = []; renderSugg(); });
 
-// ---------------------------------------------------------------- click su un neurone
+// ---------------------------------------------------------------- click on a neuron
 const ray = new THREE.Raycaster();
 let current = -1;
 let down = null;
 renderer.domElement.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener("pointerup", (e) => {
-  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;   // era un trascinamento
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;   // it was a drag
   const m = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(m, camera);
   ray.params.Points.threshold = camera.position.distanceTo(controls.target) * 0.006;
   let hits = ray.intersectObject(points).filter(h => vis[cls[h.index]] > 0.5);
-  if (hiKey) {                                   // con un circuito evidenziato, si scelgono i suoi neuroni
+  if (hiKey) {                                   // with a circuit highlighted, pick among its neurons
     const own = hits.filter(h => aHi[h.index] > 0.5);
     if (own.length) hits = own;
   }
@@ -424,10 +424,10 @@ function showInfo(i) {
   if (i === undefined || i < 0) return;
   current = i;
   const t = meta.types[typ[i]];
-  $("i-type").textContent = t === "?" ? "Tipo non annotato" : t;
+  $("i-type").textContent = t === "?" ? "Unannotated type" : t;
   const c = meta.classes[cls[i]] || "?";
   $("i-class").textContent = CLASS_NAMES[c] || c.replaceAll("_", " ");
-  $("i-side").textContent = { left: "sinistro", right: "destro", center: "centro" }[meta.sides[side[i]]] || meta.sides[side[i]];
+  $("i-side").textContent = { left: "left", right: "right", center: "center" }[meta.sides[side[i]]] || meta.sides[side[i]];
   $("i-nt").textContent = meta.nts[nt[i]];
   $("i-count").textContent = typeCount[typ[i]];
   $("i-idx").textContent = i;
@@ -435,23 +435,23 @@ function showInfo(i) {
   $("info").style.display = "block";
 }
 $("b-one").addEventListener("click", () =>
-  send({ type: "stim", idx: [current], label: `un neurone ${$("i-type").textContent}`, ...STIM }));
+  send({ type: "stim", idx: [current], label: `one ${$("i-type").textContent} neuron`, ...STIM }));
 $("b-type").addEventListener("click", () => {
   const t = meta.types[typ[current]];
   send({ type: "stim", cell_type: t, ...STIM });
 });
 $("b-close").addEventListener("click", () => { $("info").style.display = "none"; });
 
-// ---------------------------------------------------------------- collegamento al cervello
+// ---------------------------------------------------------------- connection to the brain
 let ws = null, spikeHist = [];
 function connect() {
   ws = new WebSocket(`ws://${location.hostname}:${meta.ws_port}`);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: "hello", role: "viewer" }));
-    setStatus(true, "Collegato al cervello");
+    setStatus(true, "Connected to the brain");
   };
-  ws.onclose = () => { setStatus(false, "Server del cervello non raggiungibile, riprovo…"); setTimeout(connect, 2000); };
+  ws.onclose = () => { setStatus(false, "Brain server unreachable, retrying…"); setTimeout(connect, 2000); };
   ws.onmessage = (ev) => {
     if (ev.data instanceof ArrayBuffer) { onSpikes(new Uint32Array(ev.data)); return; }
     const m = JSON.parse(ev.data);
@@ -459,33 +459,33 @@ function connect() {
     else if (m.type === "death") {
       lifeTarget = 0.12;
       aLast.fill(-100); lastAttr.needsUpdate = true;
-      setStatus(false, "La mosca è morta");
-      flash("Il cervello si è fermato. Usa /mosca spawn in gioco per farne nascere un'altra.");
+      setStatus(false, "The fly is dead");
+      flash("The brain has stopped. Use /mosca spawn in game to spawn another one.");
     }
     else if (m.type === "alive") {
       lifeTarget = 1;
-      setStatus(true, "Collegato alla mosca in gioco");
+      setStatus(true, "Connected to the in-game fly");
     }
     else if (m.type === "flies") showFlies(m.list, m.watching);
     else if (m.type === "stim_ok") flash(m.n
-      ? `Stimolato ${m.label} (${m.n.toLocaleString("it")} ${m.n === 1 ? "neurone" : "neuroni"}) per ${STIM.ms / 1000} s`
-      : `Nessun neurone trovato per ${m.label}`);
+      ? `Stimulated ${m.label} (${m.n.toLocaleString("en")} ${m.n === 1 ? "neuron" : "neurons"}) for ${STIM.ms / 1000} s`
+      : `No neurons found for ${m.label}`);
   };
 }
 function showFlies(list, watching) {
   const sel = $("fly");
   sel.innerHTML = "";
   if (!list.length) {
-    sel.innerHTML = `<option value="">nessuna mosca viva</option>`;
+    sel.innerHTML = `<option value="">no living fly</option>`;
     return;
   }
   if (!list.includes(watching)) {
-    sel.innerHTML = `<option value="" selected>scegli una mosca</option>`;
+    sel.innerHTML = `<option value="" selected>choose a fly</option>`;
   }
   for (const id of list) {
     const o = document.createElement("option");
     o.value = id;
-    o.textContent = `mosca ${id}`;
+    o.textContent = `fly ${id}`;
     o.selected = id === watching;
     sel.append(o);
   }
@@ -502,7 +502,7 @@ function setStatus(ok, text) {
 }
 function send(msg) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
-  else flash("Server del cervello non collegato");
+  else flash("Brain server not connected");
 }
 let flashTimer = 0;
 function flash(text) {
@@ -539,7 +539,7 @@ function onMotor(m) {
   spikeHist.push(m.spikes ?? 0);
   if (spikeHist.length > 20) spikeHist.shift();
   const sps = spikeHist.reduce((a, b) => a + b, 0) / spikeHist.length * 20;
-  $("v-spikes").textContent = Math.round(sps).toLocaleString("it");
+  $("v-spikes").textContent = Math.round(sps).toLocaleString("en");
   $("v-rt").textContent = m.rt >= 10 ? "10+" : m.rt.toFixed(2);
 }
 connect();

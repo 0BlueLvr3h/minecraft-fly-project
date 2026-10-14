@@ -1,19 +1,19 @@
 r"""
-Confronto finale delle configurazioni: olfatto, gusto e fuga insieme
----------------------------------------------------------------------
-Ogni correzione al modello aggiusta qualcosa ma può romperne un'altra.
-Qui ogni configurazione fa tutti gli esami:
+Final comparison of the configurations: olfaction, taste and escape together
+----------------------------------------------------------------------------
+Every fix to the model repairs something but may break something else.
+Here every configuration takes all the tests:
 
-  OLFATTO   frutta e marcio a 80 Hz: spike/s, tempo reale, decolli spuri,
-            percezione (deve distinguere i due odori)
-  GUSTO     lo zucchero di Shiu deve accendere MN9 (nell'originale: ~80 Hz)
-  FUGA      distanza di decollo con un player che arriva correndo / accovacciato
+  OLFACTION  fruit and rotten at 80 Hz: spikes/s, real-time factor, spurious
+             takeoffs, perception (must tell the two odors apart)
+  TASTE      Shiu's sugar must drive MN9 (in the original: ~80 Hz)
+  ESCAPE     takeoff distance with a player approaching sprinting / crouching
 
-Ora confronta la configurazione "fedele" (solo interneuroni corretti e taglio KC->KC)
-con passi di simulazione diversi, e controlla se il cervello si calma dopo l'odore.
+It now compares the "faithful" configuration (interneuron fix and KC->KC cut only)
+with different simulation steps, and checks whether the brain calms down after the odor.
 
-Uso:
-  python scripts\12_confronto.py
+Usage:
+  python scripts\12_comparison.py
 """
 
 import time
@@ -36,15 +36,15 @@ SHIU_SUGAR = [
 ]
 MN9_TYPE = "CB0701"
 
-FEDELE = {"fix_ln_modulatory": True, "kc_recurrent": False}
+FAITHFUL = {"fix_ln_modulatory": True, "kc_recurrent": False}
 
-# (nome, parametri, esenta anche il gusto dall'adattamento?, dt in ms)
-CORRETTO = {**FEDELE, "modulators": "all"}     # i tre errori del connettoma corretti
+# (name, parameters, also exempt taste from adaptation?, dt in ms)
+CORRECTED = {**FAITHFUL, "modulators": "all"}     # the three connectome errors fixed
 CONFIGS = [
-    ("corretto, senza adattamento",  CORRETTO, False, 0.2),
-    ("corretto + adattamento 0.5",   {**CORRETTO, "adapt_b": 0.5, "tau_a": 300.0}, False, 0.2),
-    ("corretto + adattamento 1",     {**CORRETTO, "adapt_b": 1.0, "tau_a": 300.0}, False, 0.2),
-    ("corretto + adattamento 2",     {**CORRETTO, "adapt_b": 2.0, "tau_a": 300.0}, False, 0.2),
+    ("corrected, no adaptation",     CORRECTED, False, 0.2),
+    ("corrected + adaptation 0.5",   {**CORRECTED, "adapt_b": 0.5, "tau_a": 300.0}, False, 0.2),
+    ("corrected + adaptation 1",     {**CORRECTED, "adapt_b": 1.0, "tau_a": 300.0}, False, 0.2),
+    ("corrected + adaptation 2",     {**CORRECTED, "adapt_b": 2.0, "tau_a": 300.0}, False, 0.2),
 ]
 
 
@@ -74,7 +74,7 @@ def approach(brain, circ, speed, start=12.0):
         if d[circ.gf["L"]].sum() + d[circ.gf["R"]].sum() > 0:
             return f"{dist:.1f}"
         dist -= speed * WINDOW_MS / 1000
-    return "mai"
+    return "never"
 
 
 def main():
@@ -86,10 +86,10 @@ def main():
         mn9 = brain.find(MN9_TYPE)
         if exempt_taste:
             brain.exempt_adaptation(np.concatenate([sugar, mn9]))
-        print(f"\n=== {label}   (neuromodulatori resi lenti: {brain.mod_silenced})")
+        print(f"\n=== {label}   (neuromodulators made slow: {brain.mod_silenced})")
 
         for name in ("fruity", "rotten"):
-            for level, where in ((1.0, "vicino  "), (0.3, "lontano ")):
+            for level, where in ((1.0, "near    "), (0.3, "far     ")):
                 smell = {n: dict(NONE) for n in circ.odor}
                 smell[name] = {"L": level, "R": level}
                 w0 = time.perf_counter()
@@ -99,26 +99,26 @@ def main():
                 gf = int(tot[circ.gf["L"]].sum() + tot[circ.gf["R"]].sum())
                 pf = _rate(tot, circ.perceive_idx["fruity"], 1.5)
                 pr = _rate(tot, circ.perceive_idx["rotten"], 1.5)
-                # poi togliamo l'odore senza azzerare il cervello: si calma?
+                # then remove the odor without resetting the brain: does it calm down?
                 after = []
-                for _ in range(20):                                 # 1 s senza odore
+                for _ in range(20):                                 # 1 s without odor
                     circ.apply(dict(NONE), {n: dict(NONE) for n in circ.odor})
                     c0 = brain.counts.copy()
                     brain.run(WINDOW_MS)
                     after.append(int((brain.counts - c0).sum()))
-                calm = sum(after[-6:]) / 0.3                        # spike/s nell'ultimo 0,3 s
-                print(f"    {name:7s} {where} {tot.sum() / 1.5:9,.0f} spike/s  rt {rt:5.2f}  GF {gf:3d}  "
-                      f"frutta {pf:4.0f} / marcio {pr:4.0f} Hz  | dopo 1 s senza odore: {calm:8,.0f} spike/s")
+                calm = sum(after[-6:]) / 0.3                        # spikes/s in the last 0.3 s
+                print(f"    {name:7s} {where} {tot.sum() / 1.5:9,.0f} spikes/s  rt {rt:5.2f}  GF {gf:3d}  "
+                      f"fruit {pf:4.0f} / rotten {pr:4.0f} Hz  | after 1 s without odor: {calm:8,.0f} spikes/s")
 
         ws = windows(brain, circ, 1000, stim=(sugar, 100.0))
         tot = sum(ws)
-        print(f"    gusto   zucchero -> MN9 {_rate(tot, mn9, 1.0):5.1f} Hz   (originale di Shiu: ~80)")
+        print(f"    taste   sugar -> MN9 {_rate(tot, mn9, 1.0):5.1f} Hz   (Shiu's original: ~80)")
 
-        print(f"    fuga    decolla a: correndo {approach(brain, circ, 5.6)} blocchi, "
-              f"accovacciato {approach(brain, circ, 1.3)} blocchi")
+        print(f"    escape  takes off at: sprinting {approach(brain, circ, 5.6)} blocks, "
+              f"crouching {approach(brain, circ, 1.3)} blocks")
         print(f"    ({time.perf_counter() - t0:.0f} s)")
 
-    print("\nCerchiamo la configurazione che passa tutti e tre gli esami.")
+    print("\nWe're looking for the configuration that passes all three tests.")
 
 
 if __name__ == "__main__":

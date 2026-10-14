@@ -9,8 +9,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Registro CSV del debug: una riga per tick (e per ogni player vicino).
- * Finisce in plugins/Mosca/logs/debug-AAAAMMGG-HHMMSS.csv
+ * Debug CSV log: one row per tick (and per nearby player).
+ * Written to plugins/Mosca/logs/debug-YYYYMMDD-HHMMSS.csv
+ * The "mode" column holds the internal English mode key (see Spinal.Drive), not the translated text.
  */
 final class DebugLog implements AutoCloseable {
 
@@ -28,7 +29,7 @@ final class DebugLog implements AutoCloseable {
     private int rows;
 
     DebugLog(File dir) throws IOException {
-        if (!dir.exists() && !dir.mkdirs()) throw new IOException("impossibile creare " + dir);
+        if (!dir.exists() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
         String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         file = new File(dir, "debug-" + stamp + ".csv");
         out = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8);
@@ -48,9 +49,9 @@ final class DebugLog implements AutoCloseable {
         try {
             out.write(line);
             out.newLine();
-            if (++rows % 40 == 0) out.flush();          // circa ogni 2 secondi
+            if (++rows % 40 == 0) out.flush();          // about every 2 seconds
         } catch (IOException ignored) {
-            // il debug non deve mai bloccare il gioco
+            // debugging must never block the game
         }
     }
 

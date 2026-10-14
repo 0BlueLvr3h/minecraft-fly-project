@@ -1,0 +1,85 @@
+# Messages of the Mosca plugin in English.
+# You can freely edit the copy in plugins/Mosca/lang/en.yml (restart the server to apply).
+# Words in curly braces, e.g. {id}, are filled in by the plugin: leave them as they are.
+# Keys missing here are taken from the file bundled with the plugin.
+
+command:
+  usage: "Usage: /mosca <spawn [force]|remove [all]|tp [number]|status|debug>"
+  spawn:
+    players_only: "Only a player can spawn a fly."
+    refused: "No new fly: {reason} Use /mosca spawn force to spawn it anyway."
+    done: "Fly {id} was born ({count} in total)."
+  tp:
+    players_only: "Only a player can call a fly."
+    none_own: "You don't have a fly of your own. Use /mosca tp <number>."
+    not_found: "No fly {id}."
+    done: "Fly {id} has reached you."
+    no_space: "There is no free spot near you for the fly."
+  debug:
+    players_only: "Debug output is shown in the action bar: players only."
+    enabled: "Debug on (shows the nearest fly), log: plugins/Mosca/logs/{file}"
+    disabled: "Debug off. Log saved: plugins/Mosca/logs/{file}"
+  remove:
+    all: "Removed {count} flies."
+    none_near: "No fly nearby. To remove them all: /mosca remove all"
+    done: "Removed fly {id}."
+
+# Why a fly cannot be born (used by /mosca spawn and by the nest messages)
+refusal:
+  own_limit: "you already have your fly{which}, at most {max} per player."
+  own_limit_which: " (fly {id})"
+  wait: "the PC is still measuring the last fly born, try again in a few seconds."
+  max: "the brain server's maximum number of flies has been reached."
+  pc_limit: "the brain PC is at its limit (real-time factor {rt})."
+
+status:
+  summary: "Flies: {count}   brains: {brains}   average real-time factor: {rt}   new births: {births}"
+  brains_connected: "connected"
+  brains_disconnected: "NOT connected"
+  births_yes: "yes"
+  births_wait: "in a few seconds"
+  births_max: "no, server maximum"
+  births_pc: "no, PC at its limit"
+  own: "Your flies: {owned} / {max}"
+  nearest: "Nearest: fly {id}, {mode}, health {health}, takeoffs {takeoffs}"
+  brain: "Looming L/R: {loomL} / {loomR}   Giant Fiber L/R: {gfL} / {gfR}   MN9 {mn9} Hz   grooming {groom} Hz   habituation {habituation}%"
+  memory: "Memory: player odor sensed {familiar}, learned valence {learned} (now {now})"
+  favorite: "Likes most: {who}{you}"
+  favorite_player: "{name} ({liking})"
+  favorite_nobody: "nobody"
+  favorite_you: ", you {liking}"
+  odors: "Odor perception:{odors}"
+
+fly:
+  died: "{name} {id} has died."
+
+# The nest: the composter filled with fruit
+nest:
+  stirring: "Something is moving in the fruit..."
+  fruit_scent: "Scent of fruit..."
+  not_pure: "It's no longer just fruit: no fly from this composter"
+  fermenting: "The fruit is fermenting: something has laid its eggs in it..."
+  blocked: "There's a fly ready to hatch in your composter, but: {reason}"
+  hatched: "Fly {id} hatched from your composter!"
+
+# Action bar of /mosca debug
+debug:
+  line: "Fly {id} | you: {you} | health {health} | memory {memory} | looming {loomL}/{loomR} | GF {gfL}/{gfR} | MN9 {mn9} | {mode} | spikes {spikes} | rt {rt}"
+  no_brain: "Fly {id}: brain not connected | {you} | {mode}"
+  you: "{dist} blocks, {speed} m/s"
+  out_of_range: "out of range"
+
+# What the fly is doing ({odor} = odor name, e.g. fruity)
+mode:
+  idle: "still"
+  wandering: "wandering"
+  following_odor: "following {odor}"
+  avoiding_odor: "avoiding {odor}"
+  following_player: "following a player it knows"
+  avoiding_player: "avoiding a player who hurt it"
+  eating: "eating"
+  grooming: "grooming"
+  escaping: "escaping"
+  flying: "flying"
+  flying_to_player: "flying after a player it knows"
+  flying_to_odor: "flying toward {odor}"

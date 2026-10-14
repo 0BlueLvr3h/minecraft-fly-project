@@ -1,20 +1,20 @@
 r"""
-circuits - come la mosca sente e come si muove
------------------------------------------------
-Qui sta tutta la "traduzione" tra il mondo di Minecraft e i neuroni:
+circuits - how the fly senses and how it moves
+----------------------------------------------
+This is the whole "translation" between the Minecraft world and the neurons:
 
-  SENSI   (mondo -> neuroni)
-    occhi:     player che si avvicinano  -> LC4, LPLC2      (looming)
-    antenne:   odori degli item          -> ORN dei glomeruli olfattivi
-               odore di ogni player      -> il suo mix di glomeruli (PlayerOdors)
-    rumore:    attività spontanea         -> neuroni sensoriali
+  SENSES  (world -> neurons)
+    eyes:      approaching players       -> LC4, LPLC2      (looming)
+    antennae:  item odors                -> ORNs of the olfactory glomeruli
+               each player's odor        -> its own mix of glomeruli (PlayerOdors)
+    noise:     spontaneous activity      -> sensory neurons
 
-  MOTORI  (neuroni -> mondo)
-    fuga:      Giant Fiber (DNp01) + discendenti di fuga -> decollo e direzione
-    camminata: DNp09 (avanti), MDN (indietro), DNa02 (sterzata)
+  MOTORS  (neurons -> world)
+    escape:    Giant Fiber (DNp01) + escape descending neurons -> takeoff and direction
+    walking:   DNp09 (forward), MDN (backward), DNa02 (steering)
 
-Tutti i numeri regolabili sono in cima al file. Lo usano sia il server
-(02_server.py) sia la calibrazione (04_calibra.py), così restano allineati.
+All tunable numbers are at the top of the file. Both the server (02_server.py)
+and the calibration (04_calibrate.py) use it, so they stay aligned.
 """
 
 import copy
@@ -25,25 +25,25 @@ import numpy as np
 
 from flysim import PROC
 
-# ---------------------------------------------------------------- neuroni
-LOOM_TYPES = ["LC4", "LPLC2"]                     # rilevatori di "qualcosa che arriva"
+# ---------------------------------------------------------------- neurons
+LOOM_TYPES = ["LC4", "LPLC2"]                     # "something is coming" detectors
 GIANT_FIBER = "DNp01"
 ESCAPE_POOL = ["DNp01", "DNp02", "DNp04", "DNp11"]
 
-WALK_FWD = ["DNp09"]                              # P9: camminata in avanti
-WALK_BACK = ["MDN"]                               # moonwalker: retromarcia
-WALK_TURN = "DNa02"                               # sterzata verso il proprio lato
+WALK_FWD = ["DNp09"]                              # P9: forward walking
+WALK_BACK = ["MDN"]                               # moonwalker: backward walking
+WALK_TURN = "DNa02"                               # steering towards its own side
 
-# Odori del gioco -> glomeruli (ogni glomerulo = un tipo di ORN nelle antenne)
+# Game odors -> glomeruli (each glomerulus = one ORN type in the antennae)
 ODORS = {
-    "fruity": ["ORN_DM1", "ORN_DM2", "ORN_DM4", "ORN_VM2"],   # frutta, aceto: attraenti
-    "rotten": ["ORN_DA2", "ORN_V"],                           # geosmina, CO2: avversivi
+    "fruity": ["ORN_DM1", "ORN_DM2", "ORN_DM4", "ORN_VM2"],   # fruit, vinegar: attractive
+    "rotten": ["ORN_DA2", "ORN_V"],                           # geosmin, CO2: aversive
 }
 
-NOISE_SUPERCLASS = "sensory"                      # chi riceve l'attività spontanea
+NOISE_SUPERCLASS = "sensory"                      # who receives the spontaneous activity
 
-# Gusto: recettori dello zucchero e MN9 (proboscide), gli stessi del paper di Shiu
-# (ID dal notebook di esempio di github.com/philshiu/Drosophila_brain_model)
+# Taste: sugar receptors and MN9 (proboscis), the same as in Shiu's paper
+# (IDs from the example notebook at github.com/philshiu/Drosophila_brain_model)
 SUGAR_ROOT_IDS = [
     720575940624963786, 720575940630233916, 720575940637568838, 720575940638202345,
     720575940617000768, 720575940630797113, 720575940632889389, 720575940621754367,
@@ -52,76 +52,76 @@ SUGAR_ROOT_IDS = [
     720575940633143833, 720575940612670570, 720575940628853239, 720575940629176663,
     720575940611875570,
 ]
-MN9_TYPE = "CB0701"        # così è annotato MN9 in FlyWire
-TASTE_RATE = 100.0         # Hz sui recettori dello zucchero (come nel paper)
-FEED_HZ = 20.0             # sopra questa frequenza media di MN9 la mosca inizia a mangiare
-FEED_STOP_HZ = 8.0         # ...e smette solo quando la media scende sotto questa
-# Tatto: un colpo stimola le setole della testa e i neuroni delle antenne che sentono le
-# deflessioni (JO-E). Le setole accendono sempre gli stessi discendenti (misurati con
-# 14_tatto.py): li usiamo come uscita "si pulisce", la risposta della mosca vera al tocco.
+MN9_TYPE = "CB0701"        # this is how MN9 is annotated in FlyWire
+TASTE_RATE = 100.0         # Hz on the sugar receptors (as in the paper)
+FEED_HZ = 20.0             # above this mean MN9 rate the fly starts eating
+FEED_STOP_HZ = 8.0         # ...and stops only when the mean drops below this
+# Touch: a hit stimulates the head bristles and the antennal neurons that sense
+# deflections (JO-E). The bristles always activate the same descending neurons (measured with
+# 14_touch.py): we use them as the "grooming" output, the real fly's response to touch.
 TOUCH_PREFIXES = ["BM_", "JO-E"]
-TOUCH_RATE = 150.0         # Hz sui neuroni del tatto con un colpo pieno
+TOUCH_RATE = 150.0         # Hz on the touch neurons for a full hit
 GROOM_TYPES = ["DNg84", "DNg35", "DNg15", "DNge132", "DNg48"]
-GROOM_HZ = 40.0            # sopra questa frequenza media dei discendenti: si pulisce
+GROOM_HZ = 40.0            # above this mean rate of the descending neurons: it grooms
 GROOM_STOP_HZ = 12.0
 GROOM_SMOOTH = 0.15
 
-FEED_SMOOTH = 0.1          # MN9 spara a raffiche: il muscolo della proboscide le integra
-                           # (media mobile di circa mezzo secondo)
+FEED_SMOOTH = 0.1          # MN9 fires in bursts: the proboscis muscle integrates them
+                           # (moving average of about half a second)
 
-# Percezione: per ogni odore leggiamo i neuroni più collegati a valle dei suoi ORN
-# (proiezione e interneuroni del lobo antennale). Li trova il connettoma, non un nome.
+# Perception: for each odor we read the neurons most strongly connected downstream of its ORNs
+# (antennal lobe projection neurons and interneurons). The connectome finds them, not a name.
 PERCEIVE_TOP_K = 30
-PERCEIVE_CALIB_MS = 300.0  # all'avvio: quanto simulare l'odore "pieno" per tarare la scala
+PERCEIVE_CALIB_MS = 300.0  # at startup: how long to simulate the "full" odor to calibrate the scale
 
-# ---------------------------------------------------------------- sensi
-PLAYER_RADIUS = 0.3        # mezza larghezza di un player (blocchi)
-LOOM_RATE = 150.0          # Hz massimi sui rilevatori di looming
-LOOM_MIN = 0.25            # rad/s di espansione sotto cui l'occhio non reagisce (soglia)
-LOOM_FULL = 2.0            # rad/s di espansione sulla retina che danno intensità 1
-EYE_OVERLAP = 20.0         # gradi frontali visti da entrambi gli occhi
-MAX_RANGE = 16.0           # oltre questa distanza la mosca non vede
+# ---------------------------------------------------------------- senses
+PLAYER_RADIUS = 0.3        # half the width of a player (blocks)
+LOOM_RATE = 150.0          # maximum Hz on the looming detectors
+LOOM_MIN = 0.25            # expansion rad/s below which the eye does not react (threshold)
+LOOM_FULL = 2.0            # retinal expansion rad/s that gives intensity 1
+EYE_OVERLAP = 20.0         # frontal degrees seen by both eyes
+MAX_RANGE = 16.0           # beyond this distance the fly cannot see
 
-# Abituazione della fuga: nella mosca vera un looming ripetuto che non fa male scatena
-# sempre meno fughe, perché i neuroni del looming (LC4) rispondono sempre meno; un colpo la
-# rende di nuovo sensibile. È un guadagno sui rilevatori di looming, uno per mosca.
-HAB_RATE = 2.0             # quanto in fretta si abitua (per unità di looming per secondo)
-HAB_MIN = 0.05             # guadagno minimo: abituata ignora i passi vicini, ma una corsa addosso la fa scappare
-HAB_RECOVER_S = 120.0      # secondi per tornare sensibile senza looming
-HAB_PAIN = 0.3             # un dolore almeno così la rende subito di nuovo sensibile
+# Escape habituation: in the real fly, repeated looming that does no harm triggers
+# fewer and fewer escapes, because the looming neurons (LC4) respond less and less; a hit
+# makes it sensitive again. It is a gain on the looming detectors, one per fly.
+HAB_RATE = 2.0             # how fast it habituates (per unit of looming per second)
+HAB_MIN = 0.05             # minimum gain: once habituated it ignores nearby steps, but someone running at it still makes it flee
+HAB_RECOVER_S = 120.0      # seconds to become sensitive again without looming
+HAB_PAIN = 0.3             # pain at least this strong makes it sensitive again immediately
 
-ODOR_RATE = 80.0           # Hz massimi sugli ORN
-ODOR_D0 = 3.0              # a questa distanza la concentrazione è metà
-ODOR_LAT = 0.4             # quanto conta il lato (0 = antenne uguali, 0.5 = tutto da un lato)
+ODOR_RATE = 80.0           # maximum Hz on the ORNs
+ODOR_D0 = 3.0              # at this distance the concentration is half
+ODOR_LAT = 0.4             # how much the side matters (0 = both antennae equal, 0.5 = all on one side)
 
-# ---------------------------------------------------------------- motori
-WALK_FULL_HZ = 40.0        # differenza avanti-indietro (Hz) che vale "velocità piena"
-TURN_FULL_HZ = 40.0        # differenza DNa02 sinistra-destra (Hz) che vale "sterzata piena"
+# ---------------------------------------------------------------- motors
+WALK_FULL_HZ = 40.0        # forward-backward difference (Hz) that counts as "full speed"
+TURN_FULL_HZ = 40.0        # left-right DNa02 difference (Hz) that counts as "full steering"
 
 
-# Odori dei player: ogni player ha un odore suo, scelto da 17_odori_player.py tra quelli
-# che il cervello distingue meglio. I recettori saturano: a PLAYER_HALF di concentrazione
-# danno già metà della risposta (gli ORN veri rispondono in modo sublineare).
+# Player odors: each player has its own odor, chosen by 17_player_odors.py among those
+# the brain tells apart best. The receptors saturate: at PLAYER_HALF concentration
+# they already give half the response (real ORNs respond sublinearly).
 PLAYER_HALF = 0.3
 
 
 def player_rate(conc):
-    """Hz sugli ORN di un odore di player alla concentrazione conc (0..1), intensità 1."""
+    """Hz on the ORNs of a player odor at concentration conc (0..1), intensity 1."""
     conc = max(0.0, min(1.0, float(conc)))
     return ODOR_RATE * conc / (conc + PLAYER_HALF) * (1 + PLAYER_HALF)
 
 
 class PlayerOdors:
-    """Gli odori dei player. Gli odori li sceglie 17_odori_player.py (quelli che il cervello
-    distingue meglio); qui ogni player riceve il suo la prima volta che una mosca lo sente,
-    e lo tiene per sempre (data/processed/player_assign.json). È l'odore del player, non
-    della mosca: tutte le mosche lo sentono uguale."""
+    """The players' odors. The odors are chosen by 17_player_odors.py (the ones the brain
+    tells apart best); here each player gets its own the first time a fly smells it,
+    and keeps it forever (data/processed/player_assign.json). It is the player's odor, not
+    the fly's: all flies smell it the same way."""
 
     FILE = PROC / "player_odors.json"
     ASSIGN = PROC / "player_assign.json"
 
     def __init__(self, brain, sides):
-        self.odors = []                         # per odore: {"L": (idx, intensità), "R": (...)}
+        self.odors = []                         # per odor: {"L": (idx, intensity), "R": (...)}
         if self.FILE.exists():
             for o in json.loads(self.FILE.read_text(encoding="utf-8")):
                 od = {}
@@ -136,7 +136,7 @@ class PlayerOdors:
             self.assign = {}
 
     def index(self, player):
-        """Indice dell'odore di un player (lo assegna se è nuovo), o None se non ci sono odori."""
+        """Index of a player's odor (assigned if the player is new), or None if there are no odors."""
         if not self.odors:
             return None
         i = self.assign.get(player)
@@ -145,7 +145,7 @@ class PlayerOdors:
             for v in self.assign.values():
                 if 0 <= v < len(used):
                     used[v] += 1
-            i = used.index(min(used))                  # il meno usato: i primi player tutti diversi
+            i = used.index(min(used))                  # the least used one: the first players all get different odors
             self.assign[player] = i
             try:
                 self.ASSIGN.write_text(json.dumps(self.assign, indent=1), encoding="utf-8")
@@ -160,7 +160,7 @@ class PlayerOdors:
 
 
 def _rate(delta, idx, window_s):
-    """Frequenza media (Hz) di un gruppo nella finestra."""
+    """Mean rate (Hz) of a group over the window."""
     if len(idx) == 0:
         return 0.0
     return float(delta[idx].sum()) / len(idx) / window_s
@@ -181,7 +181,7 @@ class FlyCircuits:
         self.turn = {s: brain.find(WALK_TURN, self.sides[s]) for s in "LR"}
         self.odor = {name: {s: cat(types, s) for s in "LR"} for name, types in ODORS.items()}
         self.noise = brain.find_superclass(NOISE_SUPERCLASS)
-        self.players = PlayerOdors(brain, self.sides)   # condiviso tra le mosche (sibling)
+        self.players = PlayerOdors(brain, self.sides)   # shared between the flies (sibling)
 
         roots = brain.neurons["root_id"] if "root_id" in brain.neurons else None
         self.sugar = (brain.neurons["idx"].to_numpy()[roots.isin(SUGAR_ROOT_IDS).to_numpy()]
@@ -195,9 +195,9 @@ class FlyCircuits:
         self.groom = np.concatenate([brain.find(t) for t in GROOM_TYPES])
         self.groom_avg = 0.0
         self.grooming = False
-        self.loom_gain = 1.0                             # abituazione (1 = sensibile)
+        self.loom_gain = 1.0                             # habituation (1 = sensitive)
 
-        # il riflesso di fuga è la parte che funziona: niente adattamento lì
+        # the escape reflex is the part that works: no adaptation there
         if protect_escape:
             brain.exempt_adaptation(np.concatenate(
                 [self.eye["L"], self.eye["R"], self.escape["L"], self.escape["R"]]))
@@ -207,16 +207,16 @@ class FlyCircuits:
             name: self._downstream(np.concatenate([d["L"], d["R"]]), exclude=all_orn)
             for name, d in self.odor.items()
         }
-        # neuroni a valle di più odori (interneuroni comuni) non distinguono gli odori: via
+        # neurons downstream of several odors (shared interneurons) do not tell odors apart: drop them
         orig = dict(self.perceive_idx)
         for a in orig:
             others = [orig[b] for b in orig if b != a]
             if others:
                 self.perceive_idx[a] = orig[a][~np.isin(orig[a], np.concatenate(others))]
-        self.perceive_full = {name: 1.0 for name in self.odor}   # Hz di "odore pieno"
+        self.perceive_full = {name: 1.0 for name in self.odor}   # Hz of a "full odor"
 
     def _downstream(self, src, exclude, k=PERCEIVE_TOP_K):
-        """I k neuroni che ricevono più sinapsi eccitatorie dal gruppo src."""
+        """The k neurons that receive the most excitatory synapses from the group src."""
         b = self.brain
         acc = np.zeros(b.N, np.float32)
         for j in src:
@@ -227,7 +227,7 @@ class FlyCircuits:
         return top[acc[top] > 0]
 
     def calibrate_perception(self, ms=PERCEIVE_CALIB_MS):
-        """Misura quanto si accende ogni odore al massimo, per avere una scala 0..1."""
+        """Measures how strongly each odor activates at maximum, to get a 0..1 scale."""
         none = {"L": 0.0, "R": 0.0}
         for name in self.odor:
             smell = {n: ({"L": 1.0, "R": 1.0} if n == name else dict(none)) for n in self.odor}
@@ -239,9 +239,9 @@ class FlyCircuits:
         self.brain.reset()
         return dict(self.perceive_full)
 
-    # ------------------------------------------------------------ resoconto
+    # ------------------------------------------------------------ summary
     def sibling(self, brain):
-        """Gli stessi circuiti collegati a un altro cervello (vedi FlyBrain.sibling)."""
+        """The same circuits wired to another brain (see FlyBrain.sibling)."""
         c = copy.copy(self)
         c.brain = brain
         c.mn9_avg, c.feeding = 0.0, False
@@ -252,46 +252,46 @@ class FlyCircuits:
     def report(self):
         n = lambda d: f"{len(d['L'])} + {len(d['R'])}"
         lines = [
-            f"Occhi (looming):        {n(self.eye)}",
+            f"Eyes (looming):         {n(self.eye)}",
             f"Giant Fiber:            {n(self.gf)}",
-            f"Discendenti di fuga:    {n(self.escape)}",
-            f"Camminata avanti:       {len(self.fwd)}",
-            f"Camminata indietro:     {len(self.back)}",
-            f"Sterzata (DNa02):       {n(self.turn)}",
+            f"Escape descending:      {n(self.escape)}",
+            f"Walk forward:           {len(self.fwd)}",
+            f"Walk backward:          {len(self.back)}",
+            f"Steering (DNa02):       {n(self.turn)}",
         ]
         for name, d in self.odor.items():
-            lines.append(f"Odore '{name}':{' ' * max(1, 15 - len(name))}{n(d)} ORN, "
-                         f"percezione letta da {len(self.perceive_idx[name])} neuroni a valle")
-        lines.append(f"Rumore di fondo su:     {len(self.noise)} neuroni sensoriali")
-        lines.append(f"Odori dei player:       {len(self.players.odors)} diversi"
-                     + (f", {len(self.players.assign)} player già conosciuti" if self.players.odors else
-                        " (manca data/processed/player_odors.json: lancia 17_odori_player.py)"))
-        lines.append(f"Tatto:                  {len(self.touch['L'])} + {len(self.touch['R'])} neuroni "
-                     f"(setole e antenne), pulizia letta da {len(self.groom)} discendenti")
-        lines.append(f"Gusto:                  {len(self.sugar)} recettori dello zucchero, "
+            lines.append(f"Odor '{name}': {' ' * max(1, 15 - len(name))}{n(d)} ORN, "
+                         f"perception read from {len(self.perceive_idx[name])} downstream neurons")
+        lines.append(f"Background noise on:    {len(self.noise)} sensory neurons")
+        lines.append(f"Player odors:           {len(self.players.odors)} distinct"
+                     + (f", {len(self.players.assign)} players already known" if self.players.odors else
+                        " (data/processed/player_odors.json missing: run 17_player_odors.py)"))
+        lines.append(f"Touch:                  {len(self.touch['L'])} + {len(self.touch['R'])} neurons "
+                     f"(bristles and antennae), grooming read from {len(self.groom)} descending neurons")
+        lines.append(f"Taste:                  {len(self.sugar)} sugar receptors, "
                      f"{len(self.mn9)} MN9")
         warnings = []
         if len(self.sugar) == 0 or len(self.mn9) == 0:
-            warnings.append("gusto non disponibile (zucchero o MN9 non trovati)")
+            warnings.append("taste unavailable (sugar receptors or MN9 not found)")
         if len(self.fwd) == 0:
-            warnings.append("nessun neurone per la camminata in avanti")
+            warnings.append("no neurons for forward walking")
         if len(self.turn["L"]) == 0 or len(self.turn["R"]) == 0:
-            warnings.append("manca DNa02 su un lato: niente sterzata")
+            warnings.append("DNa02 missing on one side: no steering")
         for name, d in self.odor.items():
             if len(d["L"]) + len(d["R"]) == 0:
-                warnings.append(f"nessun ORN trovato per l'odore '{name}'")
+                warnings.append(f"no ORN found for odor '{name}'")
         return lines, warnings
 
     def set_noise(self, rate_hz):
         self.brain.set_background(self.noise, rate_hz)
 
-    # ---------------------------------------------------------------- sensi
+    # ---------------------------------------------------------------- senses
     @staticmethod
     def _norm_angle(a):
         return (float(a) + 180.0) % 360.0 - 180.0
 
     def looming(self, threats):
-        """Intensità di looming (0..1) per occhio."""
+        """Looming intensity (0..1) per eye."""
         out = {"L": 0.0, "R": 0.0}
         for th in threats or []:
             d, v = float(th["dist"]), float(th["speed"])
@@ -310,8 +310,8 @@ class FlyCircuits:
         return out
 
     def smell(self, odors):
-        """Concentrazione (0..1) di ogni odore per antenna. Gli odori dei player stanno in
-        out["players"]: {indice dell'odore: {"L", "R"}}."""
+        """Concentration (0..1) of each odor per antenna. The player odors are in
+        out["players"]: {odor index: {"L", "R"}}."""
         out = {name: {"L": 0.0, "R": 0.0} for name in ODORS}
         out["players"] = {}
         for src in odors or []:
@@ -329,13 +329,13 @@ class FlyCircuits:
             if d > MAX_RANGE:
                 continue
             c = 1.0 / (1.0 + (d / ODOR_D0) ** 2)
-            s = math.sin(math.radians(self._norm_angle(src["angle"])))   # +1 = a sinistra
+            s = math.sin(math.radians(self._norm_angle(src["angle"])))   # +1 = on the left
             dst["L"] = min(1.0, dst["L"] + c * (0.5 + ODOR_LAT * s) * 2)
             dst["R"] = min(1.0, dst["R"] + c * (0.5 - ODOR_LAT * s) * 2)
         return out
 
     def apply(self, loom, smell, taste=None, touch=None):
-        """Trasforma i sensi in stimoli di Poisson sui neuroni giusti."""
+        """Turns the senses into Poisson stimuli on the right neurons."""
         idx, rates = [], []
         for s in "LR":
             hit = float((touch or {}).get(s, 0.0))
@@ -360,7 +360,7 @@ class FlyCircuits:
         self.brain.set_stimulus(np.concatenate(idx), np.concatenate(rates))
 
     def habituate(self, loom, pain, window_ms):
-        """Dopo ogni finestra: il looming visto abitua, la calma e il dolore la risensibilizzano."""
+        """After each window: seen looming habituates the fly, calm and pain make it sensitive again."""
         dt = window_ms / 1000.0
         if pain >= HAB_PAIN:
             self.loom_gain = 1.0
@@ -370,26 +370,26 @@ class FlyCircuits:
         self.loom_gain += (1.0 - self.loom_gain) * dt / HAB_RECOVER_S
         self.loom_gain = max(HAB_MIN, min(1.0, self.loom_gain))
 
-    # --------------------------------------------------------------- motori
+    # --------------------------------------------------------------- motors
     def decode(self, delta, window_ms):
         w = window_ms / 1000.0
         gf = [int(delta[self.gf["L"]].sum()), int(delta[self.gf["R"]].sum())]
 
-        # fuga: il lato più attivo dei discendenti è il lato della minaccia
+        # escape: the more active side of the descending neurons is the side of the threat
         pl, pr = float(delta[self.escape["L"]].sum()), float(delta[self.escape["R"]].sum())
         lat = (pl - pr) / (pl + pr) if pl + pr > 0 else 0.0
         efwd, eleft = -(1 - abs(lat)), -lat
         en = math.hypot(efwd, eleft) or 1.0
 
-        # camminata
+        # walking
         f_hz = _rate(delta, self.fwd, w)
         b_hz = _rate(delta, self.back, w)
         tl_hz = _rate(delta, self.turn["L"], w)
         tr_hz = _rate(delta, self.turn["R"], w)
         walk_fwd = max(-0.5, min(1.0, (f_hz - b_hz) / WALK_FULL_HZ))
-        walk_turn = max(-1.0, min(1.0, (tl_hz - tr_hz) / TURN_FULL_HZ))   # + = sinistra
+        walk_turn = max(-1.0, min(1.0, (tl_hz - tr_hz) / TURN_FULL_HZ))   # + = left
 
-        # percezione: quanto il cervello "sente" ogni odore (0..1)
+        # perception: how strongly the brain "smells" each odor (0..1)
         perceive = {name: round(min(1.0, _rate(delta, idx, w) / self.perceive_full[name]), 3)
                     for name, idx in self.perceive_idx.items()}
 
@@ -401,7 +401,7 @@ class FlyCircuits:
         self.grooming = self.groom_avg >= (GROOM_STOP_HZ if self.grooming else GROOM_HZ)
 
         return {
-            "spikes": int(delta.sum()),                  # spike in tutto il cervello (debug)
+            "spikes": int(delta.sum()),                  # spikes in the whole brain (debug)
             "mn9": round(mn9_hz, 1),
             "mn9_avg": round(self.mn9_avg, 1),
             "feeding": self.feeding,

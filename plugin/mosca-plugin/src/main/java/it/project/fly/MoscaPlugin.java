@@ -5,12 +5,12 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Plugin "Mosca": Allay il cui comportamento arriva dal connettoma della mosca
- * della frutta, simulato da un processo Python esterno (un cervello per mosca).
+ * The "Mosca" plugin: an Allay whose behaviour comes from the fruit-fly connectome,
+ * simulated by an external Python process (one brain per fly).
  *
- * Il plugin non decide niente: raccoglie i sensi (dove sono i player,
- * che odori ci sono intorno), li manda al cervello e applica i comandi
- * motori che tornano indietro.
+ * The plugin decides nothing on its own: it gathers the senses (where the players are,
+ * which odors are around), sends them to the brain and applies the motor commands
+ * that come back.
  */
 public final class MoscaPlugin extends JavaPlugin {
 
@@ -26,8 +26,9 @@ public final class MoscaPlugin extends JavaPlugin {
         FLY_KEY = new NamespacedKey(this, "mosca");
 
         Settings settings = Settings.load(getConfig(), getLogger());
+        Lang lang = new Lang(this, settings.language());
         brain = new BrainLink(this, settings.brainUrl());
-        flies = new FlyManager(this, brain, settings, new java.io.File(getDataFolder(), "logs"));
+        flies = new FlyManager(this, brain, settings, lang, new java.io.File(getDataFolder(), "logs"));
         flies.removeLeftovers();
 
         getServer().getPluginManager().registerEvents(new FlyListener(flies), this);
@@ -43,10 +44,10 @@ public final class MoscaPlugin extends JavaPlugin {
             pc.setTabCompleter(cmd);
         }
 
-        // il cuore del plugin: un passo per ogni tick del server
+        // the heart of the plugin: one step per server tick
         getServer().getScheduler().runTaskTimer(this, flies::tick, 1L, 1L);
-        getLogger().info("Mosca pronta. Cervello atteso su " + settings.brainUrl()
-                + " - odori configurati: " + settings.odors().size());
+        getLogger().info("Mosca ready. Brain expected at " + settings.brainUrl()
+                + " - configured odors: " + settings.odors().size());
     }
 
     @Override

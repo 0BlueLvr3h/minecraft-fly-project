@@ -1,10 +1,10 @@
 @echo off
-title Cervello mosca
-rem Avvia il server dei cervelli (scripts\02_server.py) con il .venv del progetto.
-rem Opzioni extra si possono aggiungere in fondo alla riga di python, es. --spawn-rt 1.2
+title Mosca brain
+rem Starts the brain server (scripts\02_server.py) with the project's .venv.
+rem Extra options can be added at the end of the python line, e.g. --spawn-rt 1.2
 cd /d "%~dp0"
 if not exist ".venv\Scripts\activate.bat" (
-  echo Manca il .venv: segui il punto 1 del README.
+  echo The .venv is missing: follow step 1 of the README.
   pause
   exit /b 1
 )

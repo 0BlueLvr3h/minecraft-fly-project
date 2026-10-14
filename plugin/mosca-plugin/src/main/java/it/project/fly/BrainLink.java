@@ -20,19 +20,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
- * Collegamento WebSocket con il server dei cervelli (02_server.py), uno per mosca.
- * Tutta la rete gira fuori dal main thread: il tick del server legge solo
- * l'ultimo comando ricevuto per ogni mosca e non aspetta mai il cervello.
+ * WebSocket link to the brain server (02_server.py), which runs one brain per fly.
+ * All networking runs off the main thread: the server tick only reads the
+ * latest command received for each fly and never waits for the brain.
  */
 public final class BrainLink {
 
     /**
-     * Un messaggio "motor" dal cervello.
-     * fwd/left: direzione di fuga. walkFwd/walkTurn: camminata letta dai DN (solo debug).
-     * perceive: quanto il cervello sente ogni odore (0..1).
-     * memValence: cosa ricorda dell'odore di player che sente adesso (+ buono, - cattivo);
-     * memFamiliar: quanto il corpo fungiforme sta sentendo quell'odore (0..1).
-     * loomGain: abituazione della fuga (1 = sensibile, 0.05 = abituata ai movimenti vicini).
+     * A "motor" message from the brain.
+     * fwd/left: escape direction. walkFwd/walkTurn: walking read from the DNs (debug only).
+     * perceive: how strongly the brain perceives each odor (0..1).
+     * memValence: what it remembers about the player odor it smells now (+ good, - bad);
+     * memFamiliar: how strongly the mushroom body is sensing that odor (0..1).
+     * loomGain: escape habituation (1 = sensitive, 0.05 = habituated to nearby movements).
      */
     public record Motor(boolean takeoff, double fwd, double left,
                         double walkFwd, double walkTurn,
@@ -56,7 +56,7 @@ public final class BrainLink {
     private final Map<String, Motor> pendingTakeoff = new ConcurrentHashMap<>();
     private volatile boolean canSpawn = true;
     private volatile double rtAvg = 0;
-    private volatile String spawnBlock = null;      // perché il server non accetta mosche: wait, rt, max
+    private volatile String spawnBlock = null;      // why the server refuses new flies: wait, rt, max
     private Supplier<List<String>> aliveFlies = List::of;
 
     public BrainLink(JavaPlugin plugin, String url) {
@@ -64,9 +64,9 @@ public final class BrainLink {
         this.uri = URI.create(url);
     }
 
-    // ------------------------------------------------------------ connessione
+    // ------------------------------------------------------------ connection
 
-    /** Inizia a collegarsi (e a ricollegarsi ogni 5 s se cade). */
+    /** Starts connecting (and reconnecting every 5 s if the link drops). */
     public void start() {
         wanted = true;
         if (ws == null && !connecting) connect();
@@ -77,12 +77,12 @@ public final class BrainLink {
         }
     }
 
-    /** Al collegamento chiede la lista delle mosche vive, per ricreare i loro cervelli. */
+    /** On connect, asks for the list of living flies, to recreate their brains. */
     public void onConnect(Supplier<List<String>> aliveFlies) {
         this.aliveFlies = aliveFlies;
     }
 
-    /** Si scollega: il server Python elimina i cervelli di questo plugin. */
+    /** Disconnects: the Python server deletes this plugin's brains. */
     public void stop() {
         wanted = false;
         if (reconnectTask != null) {
@@ -115,14 +115,14 @@ public final class BrainLink {
                 .whenComplete((w, err) -> {
                     connecting = false;
                     if (err != null) {
-                        plugin.getLogger().warning("Cervello non raggiungibile su " + uri
-                                + " (riprovo tra 5 s)");
+                        plugin.getLogger().warning("Brain not reachable at " + uri
+                                + " (retrying in 5 s)");
                     } else if (!wanted) {
                         w.abort();
                     } else {
                         ws = w;
-                        plugin.getLogger().info("Collegato al cervello: " + uri);
-                        // sul main thread: saluta e fa nascere i cervelli delle mosche già in gioco
+                        plugin.getLogger().info("Connected to the brain: " + uri);
+                        // on the main thread: say hello and spawn the brains of the flies already in game
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             sendNow("{\"type\": \"hello\", \"role\": \"body\"}");
                             for (String id : aliveFlies.get()) {
@@ -133,9 +133,9 @@ public final class BrainLink {
                 });
     }
 
-    // ------------------------------------------------------------ invio
+    // ------------------------------------------------------------ sending
 
-    /** Manda un messaggio importante: aspetta che parta quello precedente invece di saltarlo. */
+    /** Sends an important message: waits for the previous one to go out instead of skipping it. */
     public synchronized void sendNow(String json) {
         WebSocket w = ws;
         if (w == null) return;
@@ -147,7 +147,7 @@ public final class BrainLink {
         }
     }
 
-    /** Manda un messaggio. Se il precedente non è ancora partito, salta questo. */
+    /** Sends a message. If the previous one has not gone out yet, this one is skipped. */
     public synchronized void send(String json) {
         WebSocket w = ws;
         if (w == null || !sending.isDone()) return;
@@ -158,24 +158,24 @@ public final class BrainLink {
         }
     }
 
-    // ------------------------------------------------------------ ricezione
+    // ------------------------------------------------------------ receiving
 
-    /** Ultimo comando motorio ricevuto per una mosca (può essere null). */
+    /** Latest motor command received for a fly (may be null). */
     public Motor latest(String fly) {
         return latest.get(fly);
     }
 
-    /** Restituisce un decollo in attesa per una mosca, se c'è, e lo consuma. */
+    /** Returns a pending takeoff for a fly, if any, and consumes it. */
     public Motor pollTakeoff(String fly) {
         return pendingTakeoff.remove(fly);
     }
 
-    /** Il server ha margine per un altro cervello? (tempo reale medio sopra la soglia) */
+    /** Does the server have headroom for another brain? (average real-time factor above the threshold) */
     public boolean canSpawn() {
         return canSpawn;
     }
 
-    /** Perché il server non accetta nuove mosche: "wait", "rt", "max", oppure null. */
+    /** Why the server refuses new flies: "wait", "rt", "max", or null. */
     public String spawnBlock() {
         return canSpawn ? null : spawnBlock;
     }
@@ -184,7 +184,7 @@ public final class BrainLink {
         return rtAvg;
     }
 
-    /** Dimentica i comandi di una mosca che non c'è più. */
+    /** Forgets the commands of a fly that no longer exists. */
     public void forget(String fly) {
         latest.remove(fly);
         pendingTakeoff.remove(fly);
@@ -206,7 +206,7 @@ public final class BrainLink {
                 if (m.takeoff()) pendingTakeoff.put(id, m);
             }
         } catch (Exception e) {
-            plugin.getLogger().fine("Messaggio dal cervello non valido: " + e.getMessage());
+            plugin.getLogger().fine("Invalid message from the brain: " + e.getMessage());
         }
     }
 
@@ -265,7 +265,7 @@ public final class BrainLink {
         public CompletionStage<?> onClose(WebSocket w, int code, String reason) {
             if (ws == w) {
                 ws = null;
-                plugin.getLogger().info("Cervello scollegato");
+                plugin.getLogger().info("Brain disconnected");
             }
             return null;
         }
@@ -274,7 +274,7 @@ public final class BrainLink {
         public void onError(WebSocket w, Throwable error) {
             if (ws == w) {
                 ws = null;
-                plugin.getLogger().warning("Errore di collegamento col cervello: " + error.getMessage());
+                plugin.getLogger().warning("Brain connection error: " + error.getMessage());
             }
         }
     }

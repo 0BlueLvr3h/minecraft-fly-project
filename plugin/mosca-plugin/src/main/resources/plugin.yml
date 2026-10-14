@@ -2,15 +2,15 @@ name: Mosca
 version: '${version}'
 main: it.project.fly.MoscaPlugin
 api-version: '26.3'
-description: Un Allay guidato dal connettoma della mosca della frutta (FlyWire)
+description: An Allay driven by the fruit-fly connectome (FlyWire)
 
 commands:
   mosca:
-    description: Gestisce la mosca
-    usage: /mosca <spawn [force]|remove [all]|tp [numero]|status|debug>
+    description: Manages the flies
+    usage: /mosca <spawn [force]|remove [all]|tp [number]|status|debug>
     permission: mosca.admin
 
 permissions:
   mosca.admin:
-    description: Permette di gestire la mosca
+    description: Allows managing the flies
     default: op

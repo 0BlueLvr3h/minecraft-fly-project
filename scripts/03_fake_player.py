@@ -1,15 +1,15 @@
 r"""
-Finto player per testare il server senza Minecraft
----------------------------------------------------
-Simula un player che corre verso la mosca da una certa direzione e stampa
-cosa risponde il cervello. Si ferma 1 secondo dopo il primo decollo
-(o quando il player arriva addosso alla mosca).
+Fake player to test the server without Minecraft
+------------------------------------------------
+Simulates a player running towards the fly from a given direction and prints
+how the brain responds. Stops 1 second after the first takeoff
+(or when the player reaches the fly).
 
-Uso (con il server già acceso in un altro terminale):
-  python scripts\03_finto_player.py                      # da sinistra, correndo
-  python scripts\03_finto_player.py --angle -60          # da destra
-  python scripts\03_finto_player.py --angle 0            # da davanti
-  python scripts\03_finto_player.py --speed 1.4          # camminando piano
+Usage (with the server already running in another terminal):
+  python scripts\03_fake_player.py                      # from the left, sprinting
+  python scripts\03_fake_player.py --angle -60          # from the right
+  python scripts\03_fake_player.py --angle 0            # from the front
+  python scripts\03_fake_player.py --speed 1.4          # walking slowly
 """
 
 import argparse
@@ -23,9 +23,9 @@ from websockets.asyncio.client import connect
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="ws://127.0.0.1:8765")
-    ap.add_argument("--angle", type=float, default=60, help="gradi, positivo = sinistra")
-    ap.add_argument("--start", type=float, default=12.0, help="distanza iniziale (blocchi)")
-    ap.add_argument("--speed", type=float, default=5.6, help="m/s (5.6 = scatto)")
+    ap.add_argument("--angle", type=float, default=60, help="degrees, positive = left")
+    ap.add_argument("--start", type=float, default=12.0, help="starting distance (blocks)")
+    ap.add_argument("--speed", type=float, default=5.6, help="m/s (5.6 = sprint)")
     args = ap.parse_args()
 
     async with connect(args.url) as ws:
@@ -33,8 +33,8 @@ async def main():
         dist = args.start
         last = time.perf_counter()
         stop_at = None
-        print(f"Player da {args.angle:+.0f}°, a {args.start} blocchi, {args.speed} m/s\n")
-        print("  dist   looming L/R     GF L/R   decollo  fuga (avanti, sinistra)  rt")
+        print(f"Player from {args.angle:+.0f}°, at {args.start} blocks, {args.speed} m/s\n")
+        print("  dist   looming L/R     GF L/R   takeoff  escape (fwd, left)       rt")
 
         async for raw in ws:
             batch = json.loads(raw)
@@ -49,7 +49,7 @@ async def main():
                 {"angle": args.angle, "dist": dist, "speed": args.speed}]}}}))
 
             e = msg["escape"]
-            flag = "  SI " if msg["takeoff"] else "  -  "
+            flag = "  YES" if msg["takeoff"] else "  -  "
             print(f"  {dist:5.1f}   {msg['looming'][0]:.2f} / {msg['looming'][1]:.2f}"
                   f"     {msg['gf'][0]:2d} / {msg['gf'][1]:2d}   {flag}"
                   f"    {e['fwd']:+.2f}, {e['left']:+.2f}          {msg['rt']:.2f}")

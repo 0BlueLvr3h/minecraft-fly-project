@@ -26,25 +26,25 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Il nido: una compostiera riempita SOLO di frutta, invece della farina d'ossa,
- * fa nascere una mosca (come la Drosophila, che depone le uova nella frutta che fermenta).
+ * The nest: a composter filled ONLY with fruit, instead of producing bone meal,
+ * hatches a fly (like Drosophila, which lays its eggs in fermenting fruit).
  *
- *  - Ogni compostiera ha uno stato "solo frutta" che parte vero quando è vuota.
- *  - Un player che ci mette un item non di frutta (o una tramoggia che la riempie,
- *    che vediamo come livello cambiato da qualcun altro) la rende una compostiera normale
- *    fino a quando non viene svuotata.
- *  - Quando la frutta la riempie (livello 7), la compostiera diventa un nido: per
- *    nest.hatch-seconds secondi "fermenta" (particelle, bloccata), poi nasce la mosca,
- *    che appartiene a chi ha messo l'ultimo frutto.
- *  - Se la mosca non può nascere (il player ha già la sua, o il PC dei cervelli è al
- *    limite) il nido aspetta e riprova ogni 5 secondi.
+ *  - Each composter has a "fruit only" state that starts true when it is empty.
+ *  - A player who puts in a non-fruit item (or a hopper filling it, which we see
+ *    as a level changed by someone else) turns it into a normal composter
+ *    until it is emptied.
+ *  - When fruit fills it (level 7), the composter becomes a nest: for
+ *    nest.hatch-seconds seconds it "ferments" (particles, locked), then the fly is born,
+ *    owned by whoever put in the last fruit.
+ *  - If the fly cannot be born (the player already has theirs, or the brain PC is at
+ *    its limit) the nest waits and retries every 5 seconds.
  *
- * Nella compostiera vanilla il livello 7 diventa 8 (farina d'ossa pronta) dopo un secondo:
- * durante la schiusa teniamo il livello a 6, così la farina non compare mai.
+ * In a vanilla composter level 7 turns into 8 (bone meal ready) after one second:
+ * while hatching we keep the level at 6, so the bone meal never appears.
  */
 public final class NestListener implements Listener {
 
-    private static final int HATCH_LEVEL = 6;     // livello tenuto durante la schiusa
+    private static final int HATCH_LEVEL = 6;     // level kept while hatching
     private static final int FULL = 7;
     private static final int RETRY_TICKS = 100;   // 5 s
 
@@ -55,24 +55,26 @@ public final class NestListener implements Listener {
     }
 
     private static final class Nest {
-        int level;                 // ultimo livello visto da noi
-        boolean pure = true;       // finora solo frutta
-        UUID owner;                // chi ha messo l'ultimo frutto
-        BukkitTask hatch;          // non null = sta fermentando
+        int level;                 // last level we saw
+        boolean pure = true;       // only fruit so far
+        UUID owner;                // who put in the last fruit
+        BukkitTask hatch;          // non-null = fermenting
         int ticksLeft;
-        boolean told;              // il proprietario sa già perché non nasce
+        boolean told;              // the owner already knows why it is not hatching
     }
 
     private final FlyManager flies;
     private final Settings cfg;
+    private final Lang lang;
     private final Map<Key, Nest> nests = new HashMap<>();
 
     public NestListener(FlyManager flies) {
         this.flies = flies;
         this.cfg = flies.cfg;
+        this.lang = flies.lang;
     }
 
-    // ------------------------------------------------------------ click sulla compostiera
+    // ------------------------------------------------------------ clicks on the composter
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent e) {
@@ -81,7 +83,7 @@ public final class NestListener implements Listener {
         if (b == null || b.getType() != Material.COMPOSTER) return;
         Player p = e.getPlayer();
 
-        // la mano principale ha la precedenza: la mano secondaria conta solo se la principale è vuota
+        // the main hand takes precedence: the off hand only counts if the main hand is empty
         if (e.getHand() == EquipmentSlot.OFF_HAND && !p.getInventory().getItemInMainHand().getType().isAir()) return;
         if (e.getHand() != EquipmentSlot.HAND && e.getHand() != EquipmentSlot.OFF_HAND) return;
 
@@ -89,7 +91,7 @@ public final class NestListener implements Listener {
         Nest n = nests.get(key);
         if (n != null && n.hatch != null) {
             e.setCancelled(true);
-            p.sendActionBar(Component.text("Qualcosa si muove nella frutta...", NamedTextColor.GREEN));
+            p.sendActionBar(Component.text(lang.get("nest.stirring"), NamedTextColor.GREEN));
             return;
         }
 
@@ -99,7 +101,7 @@ public final class NestListener implements Listener {
         boolean fruit = item != null && cfg.nestFruits().contains(item.getType());
         UUID who = p.getUniqueId();
 
-        // il risultato (frutto accettato o no) lo vediamo al tick dopo, a giro vanilla finito
+        // we see the result (fruit accepted or not) on the next tick, once vanilla handling is done
         Bukkit.getScheduler().runTaskLater(flies.plugin, () -> after(b, before, fruit, who), 1L);
     }
 
@@ -110,12 +112,12 @@ public final class NestListener implements Listener {
         Nest n = nests.computeIfAbsent(key, k -> {
             Nest fresh = new Nest();
             fresh.level = before;
-            fresh.pure = before == 0;      // mai vista prima: è "solo frutta" solo se era vuota
+            fresh.pure = before == 0;      // never seen before: it is "fruit only" only if it was empty
             return fresh;
         });
         if (n.hatch != null) return;
 
-        // qualcun altro l'ha cambiata (tramoggia, svuotata...) da quando l'abbiamo vista
+        // someone else changed it (hopper, emptied...) since we last saw it
         if (n.level != before) n.pure = before == 0;
         if (before == 0) {
             n.pure = true;
@@ -126,14 +128,14 @@ public final class NestListener implements Listener {
             n.owner = who;
             if (n.pure && now > before && before == 0) {
                 Player p = Bukkit.getPlayer(who);
-                if (p != null) p.sendActionBar(Component.text("Profumo di frutta...", NamedTextColor.GREEN));
+                if (p != null) p.sendActionBar(Component.text(lang.get("nest.fruit_scent"), NamedTextColor.GREEN));
             }
         } else if (now != before && now != 0) {
-            // è entrato qualcosa che non è frutta
+            // something that is not fruit went in
             if (n.pure && before > 0) {
                 Player p = Bukkit.getPlayer(who);
                 if (p != null) p.sendActionBar(Component.text(
-                        "Non è più solo frutta: niente mosca da questa compostiera", NamedTextColor.GRAY));
+                        lang.get("nest.not_pure"), NamedTextColor.GRAY));
             }
             n.pure = false;
         }
@@ -142,7 +144,7 @@ public final class NestListener implements Listener {
         if (fruit && n.pure && now >= FULL) startHatch(b, n);
     }
 
-    // ------------------------------------------------------------ schiusa
+    // ------------------------------------------------------------ hatching
 
     private void startHatch(Block b, Nest n) {
         setLevel(b, HATCH_LEVEL);
@@ -153,19 +155,19 @@ public final class NestListener implements Listener {
         b.getWorld().playSound(center, Sound.BLOCK_COMPOSTER_FILL_SUCCESS, 1f, 0.6f);
         Player owner = n.owner != null ? Bukkit.getPlayer(n.owner) : null;
         if (owner != null) {
-            owner.sendActionBar(Component.text("La frutta fermenta: qualcosa ci ha deposto le uova...",
+            owner.sendActionBar(Component.text(lang.get("nest.fermenting"),
                     NamedTextColor.GREEN));
         }
         n.hatch = Bukkit.getScheduler().runTaskTimer(flies.plugin, () -> hatchTick(b, n), 20L, 20L);
     }
 
     private void hatchTick(Block b, Nest n) {
-        if (!b.getWorld().isChunkLoaded(b.getX() >> 4, b.getZ() >> 4)) return;   // nessuno vicino: in pausa
-        if (b.getType() != Material.COMPOSTER) {          // rotta o sostituita: niente mosca
+        if (!b.getWorld().isChunkLoaded(b.getX() >> 4, b.getZ() >> 4)) return;   // nobody nearby: paused
+        if (b.getType() != Material.COMPOSTER) {          // broken or replaced: no fly
             stop(b, n);
             return;
         }
-        if (level(b) != HATCH_LEVEL) setLevel(b, HATCH_LEVEL);   // una tramoggia non la deve riempire
+        if (level(b) != HATCH_LEVEL) setLevel(b, HATCH_LEVEL);   // a hopper must not fill it
         World w = b.getWorld();
         Location center = b.getLocation().add(0.5, 1.0, 0.5);
         w.spawnParticle(Particle.COMPOSTER, center, 4, 0.25, 0.1, 0.25, 0);
@@ -175,12 +177,12 @@ public final class NestListener implements Listener {
 
         FlyManager.Refusal no = flies.refusal(n.owner);
         if (no != null) {
-            // aspetta e riprova; il proprietario lo avvisiamo una volta (l'attesa di 3 s del server non conta)
+            // wait and retry; tell the owner once (the server's 3 s wait doesn't count)
             if (!n.told && no != FlyManager.Refusal.WAIT) {
                 Player p = n.owner != null ? Bukkit.getPlayer(n.owner) : null;
                 if (p != null) {
-                    p.sendMessage(Component.text("Nella tua compostiera c'è una mosca pronta a nascere, ma: "
-                            + flies.describe(no, n.owner), NamedTextColor.YELLOW));
+                    p.sendMessage(Component.text(lang.get("nest.blocked",
+                            "reason", flies.describe(no, n.owner)), NamedTextColor.YELLOW));
                 }
                 n.told = true;
             }
@@ -191,7 +193,7 @@ public final class NestListener implements Listener {
         Location at = center.clone();
         at.setYaw((float) (Math.random() * 360.0));
         FlyController fly = flies.spawn(at, n.owner, false);
-        if (fly == null) {                                // rifiutata all'ultimo: riprova
+        if (fly == null) {                                // refused at the last moment: retry
             n.ticksLeft = RETRY_TICKS;
             return;
         }
@@ -200,7 +202,7 @@ public final class NestListener implements Listener {
         w.spawnParticle(Particle.HAPPY_VILLAGER, center, 12, 0.3, 0.3, 0.3, 0);
         Player p = n.owner != null ? Bukkit.getPlayer(n.owner) : null;
         if (p != null) {
-            p.sendMessage(Component.text("È nata la mosca " + fly.id() + " dalla tua compostiera!",
+            p.sendMessage(Component.text(lang.get("nest.hatched", "id", fly.id()),
                     NamedTextColor.GREEN));
         }
         stop(b, n);
@@ -212,13 +214,13 @@ public final class NestListener implements Listener {
         nests.remove(Key.of(b));
     }
 
-    /** Ferma tutte le schiuse (spegnimento del plugin). Le compostiere restano a livello 6. */
+    /** Stops all hatchings (plugin shutdown). The composters stay at level 6. */
     public void shutdown() {
         for (Nest n : nests.values()) if (n.hatch != null) n.hatch.cancel();
         nests.clear();
     }
 
-    // ------------------------------------------------------------ livelli
+    // ------------------------------------------------------------ levels
 
     private static int level(Block b) {
         if (b.getType() != Material.COMPOSTER) return -1;

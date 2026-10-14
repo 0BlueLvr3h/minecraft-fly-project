@@ -1,8 +1,8 @@
-# --- Dati FlyWire: troppo grandi per GitHub e con licenza propria (CC BY-NC 4.0).
-#     Si scaricano a mano (vedi README) e si rigenerano con scripts/00_prepare.py
+# --- FlyWire data: too large for GitHub and under their own license (CC BY-NC 4.0).
+#     Download them manually (see README) and regenerate with scripts/00_prepare.py
 data/
 
-# --- Ambiente Python
+# --- Python environment
 .venv/
 venv/
 __pycache__/
@@ -10,7 +10,7 @@ __pycache__/
 *.nbi
 *.nbc
 
-# --- Plugin: file di build e dell'IDE
+# --- Plugin: build and IDE files
 build/
 plugin/.gradle/
 .gradle/
@@ -18,7 +18,7 @@ plugin/.gradle/
 *.iml
 out/
 
-# --- Server Minecraft di prova (se sta dentro la cartella del progetto)
+# --- Test Minecraft server (if it lives inside the project folder)
 server/
 paper-server/
 *.jar
@@ -28,11 +28,11 @@ world_the_end/
 logs/
 crash-reports/
 
-# --- Registri di debug della mosca e varie
+# --- Fly debug logs and misc
 *.csv
 *.log
 .DS_Store
 Thumbs.db
 
-# --- Tunnel verso la VM: contiene IP e percorso della chiave (usa tunnel.example.bat come modello)
+# --- Tunnel to the VM: contains the IP and the key path (use tunnel.example.bat as a template)
 tunnel.bat

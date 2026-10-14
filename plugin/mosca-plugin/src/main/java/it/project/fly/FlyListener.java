@@ -10,8 +10,8 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 
 /**
- * Spegne le interazioni vanilla del corpo (dare item all'Allay, duplicarlo, fargli raccogliere
- * cose). Un colpo le toglie vita e diventa tatto per il cervello; se muore, muore davvero.
+ * Turns off the body's vanilla interactions (giving items to the Allay, duplicating it, letting it
+ * pick things up). A hit takes away health and becomes touch for the brain; if it dies, it really dies.
  */
 public final class FlyListener implements Listener {
 
@@ -36,7 +36,7 @@ public final class FlyListener implements Listener {
         if (!flies.isFly(e.getEntity())) return;
         FlyController fly = flies.get(e.getEntity());
         switch (e.getCause()) {
-            // incidenti dovuti al nostro modo di muoverla (teleport ogni tick): non contano
+            // accidents caused by the way we move it (teleport every tick): they don't count
             case SUFFOCATION, FALL, CRAMMING, FLY_INTO_WALL -> {
                 e.setCancelled(true);
                 return;
@@ -45,7 +45,7 @@ public final class FlyListener implements Listener {
         }
         if (fly == null) return;
         if (e instanceof EntityDamageByEntityEvent hit) {
-            // il lato colpito è quello da cui arriva il colpo (il player o la freccia)
+            // the side that is hit is the one the blow comes from (the player or the arrow)
             fly.hit(hit.getDamager().getLocation(), hit.getDamage());
         }
         fly.refreshName();
