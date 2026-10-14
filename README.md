@@ -1,5 +1,7 @@
 # Mosca
 
+🇬🇧 [Read in English](README.en.md)
+
 Un mob di Minecraft (di default un Allay, ma può essere un'ape o altro) guidato dal
 connettoma della mosca della frutta (*Drosophila melanogaster*, FlyWire v783): ogni mosca
 in gioco ha un cervello di 139.255 neuroni simulato in tempo reale sul PC.
