@@ -33,3 +33,6 @@ crash-reports/
 *.log
 .DS_Store
 Thumbs.db
+
+# --- Tunnel verso la VM: contiene IP e percorso della chiave (usa tunnel.example.bat come modello)
+tunnel.bat
