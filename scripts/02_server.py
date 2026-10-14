@@ -28,7 +28,8 @@ Protocollo (JSON):
      "flies": {"3": {...comandi...}, ...}}
        comandi = {"looming", "touch", "smell", "gf", "takeoff", "escape", "perceive",
                   "mn9", "mn9_avg", "feeding", "groom", "grooming", "walk", "dn", "spikes",
-                  "memory": {"valence", "familiar", "reward", "punish"}}
+                  "memory": {"valence", "familiar", "reward", "punish"}, "loom_gain"}
+       loom_gain = abituazione della fuga (1 = sensibile, 0.1 = abituata ai movimenti vicini)
        memory.valence = cosa ha imparato dell'odore che sente adesso (+ buono, - cattivo)
 
   Esploratore 3D (client "viewer"):
@@ -102,6 +103,8 @@ class Fly:
         self.delta = self.brain.counts - before
         out = self.circ.decode(self.delta, WINDOW_MS)
         self.mb.update(self.delta, WINDOW_MS)
+        self.circ.habituate(self.loom, self.punish, WINDOW_MS)
+        out["loom_gain"] = round(self.circ.loom_gain, 3)
         out["memory"] = {"valence": round(self.mb.valence, 3), "familiar": round(self.mb.familiar, 3),
                          "reward": round(self.reward, 2), "punish": round(self.punish, 2)}
         self.out = out

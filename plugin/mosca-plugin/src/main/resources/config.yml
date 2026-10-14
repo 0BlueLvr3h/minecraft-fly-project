@@ -1,6 +1,14 @@
 # Indirizzo del server del cervello (scripts/02_server.py)
 brain-url: "ws://127.0.0.1:8765"
 
+# Corpo: il mob che fa da corpo al cervello della mosca. Qualsiasi mob va bene
+# (ALLAY, BEE, PARROT, BAT...): il cervello resta quello della Drosophila di FlyWire.
+# Le mosche già in gioco tengono il corpo vecchio: rimuovile e rifalle nascere.
+body:
+  entity: ALLAY
+  name: "Mosca"        # nome sopra la testa (seguito dal numero e dai cuori)
+  baby: false         # true = cucciolo, per i mob che ce l'hanno (un'ape cucciola è più piccola)
+
 # Distanza massima (in blocchi) a cui la mosca vede i player e sente gli odori
 range: 16.0
 
@@ -55,9 +63,21 @@ health:
 # il corpo fungiforme del cervello (scripts/memory.py); qui solo come lo usa il corpo.
 memory:
   min-valence: 0.1       # sotto questa valenza (in valore assoluto) un player le è indifferente
-  follow-valence: 0.2    # sopra questa: se resti indietro ti raggiunge con un breve volo
-  follow-distance: 4.0   # blocchi oltre i quali vola verso di te
+  follow-valence: 0.15   # sopra questa: se resti indietro ti segue in volo
+  follow-distance: 4.0   # blocchi oltre i quali decolla per seguirti
   keep-distance: 2.0     # blocchi a cui si ferma vicino a te
+  # Come gli animali domestici: se il player che le piace di più (almeno teleport-valence)
+  # è più lontano di così, o in un altro mondo, gli compare accanto. 0 = spento (più realistico).
+  teleport-distance: 20.0
+  teleport-valence: 0.2
+
+# Volo: come la camminata, il ritmo del volo lo genera il "midollo" (il cordone nervoso non
+# è in FlyWire). Tratti dritti interrotti da virate rapide, come una Drosophila vera.
+flight:
+  chance: 0.004          # probabilità per tick di decollare da sola mentre gironzola (~ogni 12 s)
+  speed: 4.0             # blocchi al secondo in volo
+  height: 2.0            # quota di volo sopra il terreno (blocchi)
+  to-odor-distance: 6.0  # oltre questa distanza vola verso un odore attraente invece di camminare
 
 # Preferenza innata per ogni odore: + = ci va incontro, - = lo evita (da -1 a 1)
 valence:

@@ -82,6 +82,14 @@ LOOM_FULL = 2.0            # rad/s di espansione sulla retina che danno intensit
 EYE_OVERLAP = 20.0         # gradi frontali visti da entrambi gli occhi
 MAX_RANGE = 16.0           # oltre questa distanza la mosca non vede
 
+# Abituazione della fuga: nella mosca vera un looming ripetuto che non fa male scatena
+# sempre meno fughe, perché i neuroni del looming (LC4) rispondono sempre meno; un colpo la
+# rende di nuovo sensibile. È un guadagno sui rilevatori di looming, uno per mosca.
+HAB_RATE = 2.0             # quanto in fretta si abitua (per unità di looming per secondo)
+HAB_MIN = 0.05             # guadagno minimo: abituata ignora i passi vicini, ma una corsa addosso la fa scappare
+HAB_RECOVER_S = 120.0      # secondi per tornare sensibile senza looming
+HAB_PAIN = 0.3             # un dolore almeno così la rende subito di nuovo sensibile
+
 ODOR_RATE = 80.0           # Hz massimi sugli ORN
 ODOR_D0 = 3.0              # a questa distanza la concentrazione è metà
 ODOR_LAT = 0.4             # quanto conta il lato (0 = antenne uguali, 0.5 = tutto da un lato)
@@ -187,6 +195,7 @@ class FlyCircuits:
         self.groom = np.concatenate([brain.find(t) for t in GROOM_TYPES])
         self.groom_avg = 0.0
         self.grooming = False
+        self.loom_gain = 1.0                             # abituazione (1 = sensibile)
 
         # il riflesso di fuga è la parte che funziona: niente adattamento lì
         if protect_escape:
@@ -237,6 +246,7 @@ class FlyCircuits:
         c.brain = brain
         c.mn9_avg, c.feeding = 0.0, False
         c.groom_avg, c.grooming = 0.0, False
+        c.loom_gain = 1.0
         return c
 
     def report(self):
@@ -338,7 +348,7 @@ class FlyCircuits:
             rates.append(np.full(len(self.sugar), min(1.0, sweet) * TASTE_RATE, np.float32))
         for s in "LR":
             idx.append(self.eye[s])
-            rates.append(np.full(len(self.eye[s]), loom[s] * LOOM_RATE, np.float32))
+            rates.append(np.full(len(self.eye[s]), loom[s] * LOOM_RATE * self.loom_gain, np.float32))
             for name, d in self.odor.items():
                 idx.append(d[s])
                 rates.append(np.full(len(d[s]), smell[name][s] * ODOR_RATE, np.float32))
@@ -348,6 +358,17 @@ class FlyCircuits:
                     idx.append(pidx)
                     rates.append((player_rate(conc[s]) * w).astype(np.float32))
         self.brain.set_stimulus(np.concatenate(idx), np.concatenate(rates))
+
+    def habituate(self, loom, pain, window_ms):
+        """Dopo ogni finestra: il looming visto abitua, la calma e il dolore la risensibilizzano."""
+        dt = window_ms / 1000.0
+        if pain >= HAB_PAIN:
+            self.loom_gain = 1.0
+            return
+        seen = max(loom.get("L", 0.0), loom.get("R", 0.0))
+        self.loom_gain *= math.exp(-HAB_RATE * seen * dt)
+        self.loom_gain += (1.0 - self.loom_gain) * dt / HAB_RECOVER_S
+        self.loom_gain = max(HAB_MIN, min(1.0, self.loom_gain))
 
     # --------------------------------------------------------------- motori
     def decode(self, delta, window_ms):

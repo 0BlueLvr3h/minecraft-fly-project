@@ -1,6 +1,10 @@
 package it.project.fly;
 
 import org.bukkit.Material;
+import org.bukkit.entity.Allay;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Mob;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -16,6 +20,9 @@ import java.util.logging.Logger;
 /** Impostazioni lette da config.yml (con valori di default se mancano). */
 public record Settings(
         String brainUrl,
+        Class<? extends Mob> bodyClass,
+        String bodyName,
+        boolean bodyBaby,
         double range,
         double maxSpeed,
         double maxTurn,
@@ -33,6 +40,12 @@ public record Settings(
         double followValence,
         double followDistance,
         double keepDistance,
+        double teleportDistance,
+        double teleportValence,
+        double flightChance,
+        double flightSpeed,
+        double flightHeight,
+        double flyToOdorDistance,
         Map<String, Double> valence,
         Map<Material, String> odors) {
 
@@ -80,8 +93,22 @@ public record Settings(
             else fruits.add(m);
         }
 
+        // Corpo: qualsiasi mob (ALLAY, BEE, PARROT...). Il cervello resta quello della Drosophila.
+        Class<? extends Mob> body = Allay.class;
+        String bodyType = c.getString("body.entity", "ALLAY");
+        try {
+            Class<? extends Entity> k = EntityType.valueOf(bodyType.toUpperCase(Locale.ROOT)).getEntityClass();
+            if (k != null && Mob.class.isAssignableFrom(k)) body = k.asSubclass(Mob.class);
+            else log.warning("body.entity: " + bodyType + " non è un mob, uso ALLAY");
+        } catch (IllegalArgumentException e) {
+            log.warning("body.entity: " + bodyType + " sconosciuto, uso ALLAY");
+        }
+
         return new Settings(
                 c.getString("brain-url", "ws://127.0.0.1:8765"),
+                body,
+                c.getString("body.name", "Mosca"),
+                c.getBoolean("body.baby", false),
                 c.getDouble("range", 16.0),
                 c.getDouble("walk.max-speed", 1.5),
                 c.getDouble("walk.max-turn", 120.0),
@@ -96,9 +123,15 @@ public record Settings(
                 Math.max(1, c.getInt("nest.hatch-seconds", 20)),
                 fruits,
                 clamp(c.getDouble("memory.min-valence", 0.1), 0, 1),
-                clamp(c.getDouble("memory.follow-valence", 0.2), 0, 2),
+                clamp(c.getDouble("memory.follow-valence", 0.15), 0, 2),
                 Math.max(1.0, c.getDouble("memory.follow-distance", 4.0)),
                 Math.max(0.5, c.getDouble("memory.keep-distance", 2.0)),
+                Math.max(0, c.getDouble("memory.teleport-distance", 20.0)),
+                clamp(c.getDouble("memory.teleport-valence", 0.2), 0, 2),
+                clamp(c.getDouble("flight.chance", 0.004), 0, 1),
+                Math.max(0.5, c.getDouble("flight.speed", 4.0)),
+                Math.max(0.5, c.getDouble("flight.height", 2.0)),
+                Math.max(2.0, c.getDouble("flight.to-odor-distance", 6.0)),
                 valence,
                 odors);
     }

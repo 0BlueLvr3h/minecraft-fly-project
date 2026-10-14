@@ -5,7 +5,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.Allay;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
@@ -92,6 +92,16 @@ public final class FlyManager {
         return n;
     }
 
+    public FlyController byId(String id) {
+        return flies.get(id);
+    }
+
+    /** La mosca legata a questo player (quella a cui piace di più), o null. */
+    public FlyController bondedTo(UUID player) {
+        for (FlyController f : flies.values()) if (player.equals(f.favorite())) return f;
+        return null;
+    }
+
     public FlyController ownedBy(UUID owner) {
         for (FlyController f : flies.values()) if (owner.equals(f.owner())) return f;
         return null;
@@ -147,7 +157,7 @@ public final class FlyManager {
 
     public void removeLeftovers() {
         for (World w : Bukkit.getWorlds()) {
-            for (Allay a : w.getEntitiesByClass(Allay.class)) {
+            for (Mob a : w.getEntitiesByClass(Mob.class)) {
                 if (a.getPersistentDataContainer().has(MoscaPlugin.FLY_KEY, PersistentDataType.BYTE)) a.remove();
             }
         }

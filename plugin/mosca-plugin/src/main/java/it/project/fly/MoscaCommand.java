@@ -13,7 +13,7 @@ import org.bukkit.util.Vector;
 import java.util.List;
 import java.util.Locale;
 
-/** /mosca spawn [force] | remove [all] | status | debug */
+/** /mosca spawn [force] | remove [all] | tp [numero] | status | debug */
 public final class MoscaCommand implements CommandExecutor, TabCompleter {
 
     private final FlyManager flies;
@@ -49,6 +49,23 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
                 } else {
                     msg(sender, "È nata la mosca " + fly.id() + " (" + flies.count() + " in tutto).",
                             NamedTextColor.GREEN);
+                }
+            }
+            case "tp" -> {
+                if (!(sender instanceof Player p)) {
+                    msg(sender, "Solo un player può chiamare una mosca.", NamedTextColor.RED);
+                    return true;
+                }
+                // senza numero: la tua mosca (quella che hai fatto nascere, o quella legata a te)
+                FlyController fly = !opt.isEmpty() ? flies.byId(opt) : flies.ownedBy(p.getUniqueId());
+                if (fly == null && opt.isEmpty()) fly = flies.bondedTo(p.getUniqueId());
+                if (fly == null) {
+                    msg(sender, opt.isEmpty() ? "Non hai una mosca tua. Usa /mosca tp <numero>."
+                            : "Nessuna mosca " + opt + ".", NamedTextColor.RED);
+                } else if (fly.teleportTo(p)) {
+                    msg(sender, "La mosca " + fly.id() + " ti ha raggiunto.", NamedTextColor.GREEN);
+                } else {
+                    msg(sender, "Non c'è un posto libero vicino a te per la mosca.", NamedTextColor.RED);
                 }
             }
             case "debug" -> {
@@ -101,17 +118,25 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
                         fly.id(), fly.mode(), fly.health(), fly.takeoffs()), NamedTextColor.AQUA);
                 if (m != null) {
                     msg(sender, String.format(Locale.ROOT,
-                            "Looming L/R: %.2f / %.2f   Giant Fiber L/R: %d / %d   MN9 %.0f Hz   pulizia %.0f Hz",
-                            m.loomL(), m.loomR(), m.gfL(), m.gfR(), m.mn9(), m.groom()), NamedTextColor.GRAY);
+                            "Looming L/R: %.2f / %.2f   Giant Fiber L/R: %d / %d   MN9 %.0f Hz   pulizia %.0f Hz   abituazione %.0f%%",
+                            m.loomL(), m.loomR(), m.gfL(), m.gfR(), m.mn9(), m.groom(), 100 * (1 - m.loomGain())),
+                            NamedTextColor.GRAY);
                     msg(sender, String.format(Locale.ROOT,
                             "Memoria: odore di player sentito %.2f, valenza imparata %+.2f (adesso %+.2f)",
                             m.memFamiliar(), fly.memory(), m.memValence()), NamedTextColor.GRAY);
+                    java.util.UUID fav = fly.favorite();
+                    org.bukkit.OfflinePlayer fp = fav != null ? org.bukkit.Bukkit.getOfflinePlayer(fav) : null;
+                    String you = sender instanceof Player pl
+                            ? String.format(Locale.ROOT, ", tu %+.2f", fly.likingOf(pl.getUniqueId())) : "";
+                    msg(sender, "Le piace di più: " + (fp != null && fp.getName() != null
+                            ? fp.getName() + String.format(Locale.ROOT, " (%+.2f)", fly.likingOf(fav)) : "nessuno") + you,
+                            NamedTextColor.GRAY);
                     StringBuilder p = new StringBuilder("Percezione odori:");
                     m.perceive().forEach((k, v) -> p.append(String.format(Locale.ROOT, " %s %.2f", k, v)));
                     msg(sender, p.toString(), NamedTextColor.GRAY);
                 }
             }
-            default -> msg(sender, "Uso: /mosca <spawn [force]|remove [all]|status|debug>", NamedTextColor.RED);
+            default -> msg(sender, "Uso: /mosca <spawn [force]|remove [all]|tp [numero]|status|debug>", NamedTextColor.RED);
         }
         return true;
     }
@@ -120,13 +145,14 @@ public final class MoscaCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             String a = args[0].toLowerCase(Locale.ROOT);
-            return List.of("spawn", "remove", "status", "debug").stream().filter(s -> s.startsWith(a)).toList();
+            return List.of("spawn", "remove", "status", "debug", "tp").stream().filter(s -> s.startsWith(a)).toList();
         }
         if (args.length == 2) {
             String a = args[1].toLowerCase(Locale.ROOT);
             List<String> opts = switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "spawn" -> List.of("force");
                 case "remove" -> List.of("all");
+                case "tp" -> flies.all().stream().map(FlyController::id).toList();
                 default -> List.of();
             };
             return opts.stream().filter(s -> s.startsWith(a)).toList();

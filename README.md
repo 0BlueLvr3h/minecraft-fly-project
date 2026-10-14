@@ -10,6 +10,9 @@ Un Allay di Minecraft guidato dal connettoma della mosca della frutta
 - **Tatto**: un colpo stimola le setole della testa; con un colpo forte scatta il riflesso di fuga.
 - **Memoria**: riconosce i player dall'odore e impara nel corpo fungiforme. Se mangia
   mentre sei vicino ti segue (e ti raggiunge in volo se resti indietro); se la colpisci ti evita.
+- **Volo**: esplora in volo con tratti dritti e virate rapide (saccadi), vola verso la frutta
+  lontana e dietro ai player che conosce; come la camminata, lo genera il midollo.
+- **Teletrasporto** (opzionale): se il player che le piace di più si allontana troppo, gli compare accanto.
 - **Nido**: una compostiera piena solo di frutta fa nascere una mosca.
 - **Camminata**: la genera il plugin (il "midollo"), perché FlyWire non contiene il cordone nervoso.
 
@@ -51,7 +54,8 @@ data/           dati FlyWire: NON nel repository, vedi sotto
 python scripts\02_server.py          (cervelli + esploratore su http://127.0.0.1:8766)
 ```
 
-In gioco: `/mosca spawn`, `/mosca status`, `/mosca debug`, `/mosca remove [all]`.
+In gioco: `/mosca spawn`, `/mosca status`, `/mosca debug`, `/mosca tp [numero]` (te la porta vicino), `/mosca remove [all]`.
+Il corpo si sceglie in `config.yml` (`body.entity`: ALLAY, BEE...): il cervello resta quello della Drosophila.
 
 Senza comandi: riempi una compostiera **solo di frutta** (mele, anguria, zucca, bacche) e invece
 della farina d'ossa, dopo un po', ne esce una mosca.

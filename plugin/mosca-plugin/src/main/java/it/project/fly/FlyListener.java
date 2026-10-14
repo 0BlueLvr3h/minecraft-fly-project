@@ -10,7 +10,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 
 /**
- * Spegne le interazioni vanilla dell'Allay (dargli item, duplicarlo, fargli raccogliere
+ * Spegne le interazioni vanilla del corpo (dare item all'Allay, duplicarlo, fargli raccogliere
  * cose). Un colpo le toglie vita e diventa tatto per il cervello; se muore, muore davvero.
  */
 public final class FlyListener implements Listener {
